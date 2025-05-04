@@ -16,23 +16,40 @@ jobs:
       
       - name: Install dependencies
         run: |
+          # Ensure multiarch is properly set up
           sudo dpkg --add-architecture amd64
           sudo apt-get update
-          sudo apt-get install -y build-essential flex bison gcc-mingw-w64 \
-            libx11-dev libfreetype6-dev
-          # Explicitly install 64-bit freetype
-          sudo apt-get install -y libfreetype6-dev:amd64
-          # Install additional freetype-related packages
-          sudo apt-get install -y libfreetype-dev freetype2-demos
-          # Check if the 64-bit freetype library is available
-          dpkg -L libfreetype6-dev:amd64 || true
+          
+          # Install basic build dependencies
+          sudo apt-get install -y build-essential flex bison gcc-mingw-w64 libx11-dev
+          sudo apt-get install -y wget automake libtool pkg-config
+          
+          # Install FreeType dependencies for native build
+          sudo apt-get install -y libfreetype6 libfreetype6:amd64 libfreetype6-dev
+
+      - name: Cross-compile FreeType for ARM64
+        run: |
+          # Download and extract FreeType source
+          wget https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz
+          tar -xzf freetype-2.13.2.tar.gz
+          cd freetype-2.13.2
+          
+          # Configure and build FreeType for ARM64 Windows
+          ./configure --host=aarch64-w64-mingw32 --prefix=$PWD/../freetype-arm64
+          make -j$(nproc)
+          make install
+          cd ..
+          
+          # Show the compiled files
+          echo "FreeType ARM64 files:"
+          find freetype-arm64 -type f | grep -E '\.(a|dll|lib)$'
       
       - name: Build native Wine tools
         run: |
           # First build the native tools
           mkdir -p wine-tools
           cd wine-tools
-          ../configure --enable-win64
+          PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig" ../configure --enable-win64
           make -j$(nproc) tools
           cd ..
       
@@ -40,7 +57,12 @@ jobs:
         run: |
           mkdir -p build-arm64
           cd build-arm64
-          ../configure --host=aarch64-w64-mingw32 --with-wine-tools=$PWD/../wine-tools --enable-win64 --without-oss --disable-winemenubuilder --disable-tests
+          # Use the cross-compiled FreeType
+          export FREETYPE_CFLAGS="-I$PWD/../freetype-arm64/include/freetype2"
+          export FREETYPE_LIBS="-L$PWD/../freetype-arm64/lib -lfreetype"
+          ../configure --host=aarch64-w64-mingw32 --with-wine-tools=$PWD/../wine-tools \
+            --enable-win64 --without-oss --disable-winemenubuilder --disable-tests \
+            --with-freetype
           make -j$(nproc)
       
       - name: Create artifact
@@ -62,23 +84,40 @@ jobs:
       
       - name: Install dependencies
         run: |
+          # Ensure multiarch is properly set up
           sudo dpkg --add-architecture amd64
           sudo apt-get update
-          sudo apt-get install -y build-essential flex bison gcc-mingw-w64 \
-            libx11-dev libfreetype6-dev
-          # Explicitly install 64-bit freetype
-          sudo apt-get install -y libfreetype6-dev:amd64
-          # Install additional freetype-related packages
-          sudo apt-get install -y libfreetype-dev freetype2-demos
-          # Check if the 64-bit freetype library is available
-          dpkg -L libfreetype6-dev:amd64 || true
+          
+          # Install basic build dependencies
+          sudo apt-get install -y build-essential flex bison gcc-mingw-w64 libx11-dev
+          sudo apt-get install -y wget automake libtool pkg-config
+          
+          # Install FreeType dependencies for native build
+          sudo apt-get install -y libfreetype6 libfreetype6:amd64 libfreetype6-dev
+
+      - name: Cross-compile FreeType for x86_64
+        run: |
+          # Download and extract FreeType source
+          wget https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz
+          tar -xzf freetype-2.13.2.tar.gz
+          cd freetype-2.13.2
+          
+          # Configure and build FreeType for x86_64 Windows
+          ./configure --host=x86_64-w64-mingw32 --prefix=$PWD/../freetype-x86_64
+          make -j$(nproc)
+          make install
+          cd ..
+          
+          # Show the compiled files
+          echo "FreeType x86_64 files:"
+          find freetype-x86_64 -type f | grep -E '\.(a|dll|lib)$'
       
       - name: Build native Wine tools
         run: |
           # First build the native tools
           mkdir -p wine-tools
           cd wine-tools
-          ../configure --enable-win64
+          PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig" ../configure --enable-win64
           make -j$(nproc) tools
           cd ..
       
@@ -86,7 +125,12 @@ jobs:
         run: |
           mkdir -p build-x86_64
           cd build-x86_64
-          ../configure --host=x86_64-w64-mingw32 --with-wine-tools=$PWD/../wine-tools --enable-win64 --without-oss --disable-winemenubuilder --disable-tests
+          # Use the cross-compiled FreeType
+          export FREETYPE_CFLAGS="-I$PWD/../freetype-x86_64/include/freetype2"
+          export FREETYPE_LIBS="-L$PWD/../freetype-x86_64/lib -lfreetype"
+          ../configure --host=x86_64-w64-mingw32 --with-wine-tools=$PWD/../wine-tools \
+            --enable-win64 --without-oss --disable-winemenubuilder --disable-tests \
+            --with-freetype
           make -j$(nproc)
       
       - name: Create artifact
