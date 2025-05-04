@@ -29,6 +29,9 @@ jobs:
           
           # Install Brotli for WOFF2 support in FreeType
           sudo apt-get install -y libbrotli-dev
+          
+          # Install zlib development files
+          sudo apt-get install -y zlib1g-dev
 
       - name: Cross-compile FreeType for ARM64
         run: |
@@ -40,7 +43,7 @@ jobs:
           # Configure and build FreeType for ARM64 Windows
           # Disable WOFF2 support to avoid Brotli dependency
           ./configure --host=aarch64-w64-mingw32 --prefix=$PWD/../freetype-arm64 \
-            --disable-shared --enable-static --without-brotli --without-png
+            --disable-shared --enable-static --without-brotli --with-zlib
           make -j$(nproc)
           make install
           cd ..
@@ -102,6 +105,9 @@ jobs:
           
           # Install Brotli for WOFF2 support in FreeType
           sudo apt-get install -y libbrotli-dev
+          
+          # Install zlib development files
+          sudo apt-get install -y zlib1g-dev
 
       - name: Cross-compile FreeType for x86_64
         run: |
@@ -113,7 +119,7 @@ jobs:
           # Configure and build FreeType for x86_64 Windows
           # Disable WOFF2 support to avoid Brotli dependency
           ./configure --host=x86_64-w64-mingw32 --prefix=$PWD/../freetype-x86_64 \
-            --disable-shared --enable-static --without-brotli --without-png
+            --disable-shared --enable-static --without-brotli --with-zlib
           make -j$(nproc)
           make install
           cd ..
