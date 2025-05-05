@@ -8,153 +8,200 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-arm64:
-    name: Build ARM64 Wine for Winlator
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Install dependencies
+      - name: "Install ArchLinux"
         run: |
-          # Ensure multiarch is properly set up
-          sudo dpkg --add-architecture amd64
-          sudo apt-get update
-          
-          # Install basic build dependencies
-          sudo apt-get install -y build-essential flex bison gcc-mingw-w64 libx11-dev
-          sudo apt-get install -y wget automake libtool pkg-config
-          
-          # Install FreeType dependencies for native build
-          sudo apt-get install -y libfreetype6 libfreetype6:amd64 libfreetype6-dev
-          
-          # Install Brotli for WOFF2 support in FreeType
-          sudo apt-get install -y libbrotli-dev
-          
-          # Install zlib development files
-          sudo apt-get install -y zlib1g-dev
+          sudo apt update
+          sudo apt install -y arch-install-scripts wget
+          sudo mkdir -p /mnt/
 
-      - name: Cross-compile FreeType for ARM64
+          wget https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst
+
+          sudo tar -xf archlinux-bootstrap-x86_64.tar.zst
+          sudo rm -f archlinux-bootstrap-x86_64.tar.zst
+          sudo mv root.x86_64 /mnt/arch
+
+          sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm base base-devel git cmake meson ninja bison flex python-pip wget python-mako python-pyyaml unzip p7zip glslang python-docutils xmlto fop libxslt gcc-mingw-w64-base"
+
+      - name: "Setup Basic Android Runtime Environment"
         run: |
-          # Download and extract FreeType source
-          wget https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz
-          tar -xzf freetype-2.13.2.tar.gz
-          cd freetype-2.13.2
+          git clone https://github.com/termux/termux-docker.git
+          sudo cp -rf termux-docker/system/x86 /mnt/arch/system
+          sudo chown -R $(whoami):$(whoami) /mnt/arch/system
+          sudo chmod 755 -R /mnt/arch/system
+
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Setup NDK for Cross-Compilation"
+        run: |
+          # Setup NDK directories
+          sudo mkdir -p /mnt/arch/cache
           
-          # Configure and build FreeType for ARM64 Windows
-          # Disable WOFF2 support to avoid Brotli dependency
-          ./configure --host=aarch64-w64-mingw32 --prefix=$PWD/../freetype-arm64 \
-            --disable-shared --enable-static --without-brotli --with-zlib
-          make -j$(nproc)
-          make install
-          cd ..
+          # Download NDK
+          wget -q https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
+          sudo mv android-ndk-r26b-linux.zip /mnt/arch/cache/
           
-          # Show the compiled files
-          echo "FreeType ARM64 files:"
-          find freetype-arm64 -type f | grep -E '\.(a|dll|lib)$'
-      
-      - name: Build native Wine tools
+          # Download MinGW
+          wget -q http://techer.pascal.free.fr/Red-Rose_MinGW-w64-Toolchain/Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz
+          sudo mv Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz /mnt/arch/cache/
+
+          # Setup working directory
+          sudo mkdir -p /mnt/arch/wine-build
+          sudo cp -rf ./* /mnt/arch/wine-build/
+          sudo mkdir -p /mnt/arch/wine-build/wine-tools
+          sudo mkdir -p /mnt/arch/wine-build/build-arm64
+          sudo mkdir -p /mnt/arch/wine-build/build-x86_64
+          
+          # Create prefix directory
+          sudo mkdir -p /mnt/arch/prefix/lib
+          sudo mkdir -p /mnt/arch/prefix/include
+
+      - name: "Build Wine for ARM64"
         run: |
-          # First build the native tools
-          mkdir -p wine-tools
-          cd wine-tools
-          PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig" ../configure --enable-win64
-          make -j$(nproc) tools
-          cd ..
-      
-      - name: Configure and build for ARM64
+          sudo arch-chroot /mnt/arch bash -c "
+            # Setup environment
+            export PATH=\$PATH:/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin
+            export ANDROID_SDK=29
+            export ARCH=aarch64
+            export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
+            export CXX=\$CC++
+            export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
+            export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
+            export PREFIX=/prefix
+            
+            cd /wine-build
+            
+            # Build native tools
+            cd wine-tools
+            ../configure --enable-win64 --without-x
+            make -j \$(nproc) __tooldeps__ nls/all
+            cd ..
+            
+            # Build wine for ARM64
+            cd build-arm64
+            ../configure --enable-archs=i386,x86_64 \
+              --host=\$TOOLCHAIN_TRIPLE \
+              --with-wine-tools=/wine-build/wine-tools \
+              --prefix=\$PREFIX \
+              --without-oss \
+              --disable-winemenubuilder \
+              --disable-win16 \
+              --disable-tests \
+              --with-x \
+              --x-libraries=\$PREFIX/lib \
+              --x-includes=\$PREFIX/include \
+              --with-pulse \
+              --with-gstreamer \
+              --with-opengl \
+              --with-gnutls \
+              --with-mingw=gcc \
+              --with-xinput \
+              --with-xinput2 \
+              --enable-nls \
+              --without-xshm \
+              --without-xxf86vm \
+              --without-osmesa \
+              --without-usb \
+              --without-sdl \
+              --without-cups \
+              --without-netapi \
+              --without-pcap \
+              --without-gphoto \
+              --without-v4l2 \
+              --without-pcsclite \
+              --without-wayland \
+              --without-opencl \
+              --without-dbus \
+              --without-sane \
+              --without-udev \
+              --without-capi
+            make -j \$(nproc)
+            cd ..
+            
+            # Package the build
+            cd build-arm64
+            tar -czf /wine-arm64.tar.gz .
+          "
+          
+          # Copy output to workspace
+          sudo cp /mnt/arch/wine-arm64.tar.gz ./
+
+      - name: "Build Wine for x86_64"
         run: |
-          mkdir -p build-arm64
-          cd build-arm64
-          # Use the cross-compiled FreeType
-          export FREETYPE_CFLAGS="-I$PWD/../freetype-arm64/include/freetype2"
-          export FREETYPE_LIBS="-L$PWD/../freetype-arm64/lib -lfreetype"
-          ../configure --host=aarch64-w64-mingw32 --with-wine-tools=$PWD/../wine-tools \
-            --enable-win64 --without-oss --disable-winemenubuilder --disable-tests \
-            --with-freetype
-          make -j$(nproc)
-      
-      - name: Create artifact
-        run: |
-          cd build-arm64
-          tar -czf ../wine-arm64.tar.gz .
-      
-      - name: Upload artifact
+          sudo arch-chroot /mnt/arch bash -c "
+            # Setup environment
+            export PATH=\$PATH:/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin
+            export ANDROID_SDK=29
+            export ARCH=x86_64
+            export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
+            export CXX=\$CC++
+            export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
+            export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
+            export PREFIX=/prefix
+            
+            cd /wine-build
+            
+            # Build wine for x86_64
+            cd build-x86_64
+            ../configure --enable-archs=i386,x86_64 \
+              --host=\$TOOLCHAIN_TRIPLE \
+              --with-wine-tools=/wine-build/wine-tools \
+              --prefix=\$PREFIX \
+              --without-oss \
+              --disable-winemenubuilder \
+              --disable-win16 \
+              --disable-tests \
+              --with-x \
+              --x-libraries=\$PREFIX/lib \
+              --x-includes=\$PREFIX/include \
+              --with-pulse \
+              --with-gstreamer \
+              --with-opengl \
+              --with-gnutls \
+              --with-mingw=gcc \
+              --with-xinput \
+              --with-xinput2 \
+              --enable-nls \
+              --without-xshm \
+              --without-xxf86vm \
+              --without-osmesa \
+              --without-usb \
+              --without-sdl \
+              --without-cups \
+              --without-netapi \
+              --without-pcap \
+              --without-gphoto \
+              --without-v4l2 \
+              --without-pcsclite \
+              --without-wayland \
+              --without-opencl \
+              --without-dbus \
+              --without-sane \
+              --without-udev \
+              --without-capi
+            make -j \$(nproc)
+            cd ..
+            
+            # Package the build
+            cd build-x86_64
+            tar -czf /wine-x86_64.tar.gz .
+          "
+          
+          # Copy output to workspace
+          sudo cp /mnt/arch/wine-x86_64.tar.gz ./
+
+      - name: "Upload ARM64 Artifact"
         uses: actions/upload-artifact@v4
         with:
           name: wine-arm64
           path: wine-arm64.tar.gz
-  
-  build-x86_64:
-    name: Build x86_64 Wine for Winlator
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Install dependencies
-        run: |
-          # Ensure multiarch is properly set up
-          sudo dpkg --add-architecture amd64
-          sudo apt-get update
-          
-          # Install basic build dependencies
-          sudo apt-get install -y build-essential flex bison gcc-mingw-w64 libx11-dev
-          sudo apt-get install -y wget automake libtool pkg-config
-          
-          # Install FreeType dependencies for native build
-          sudo apt-get install -y libfreetype6 libfreetype6:amd64 libfreetype6-dev
-          
-          # Install Brotli for WOFF2 support in FreeType
-          sudo apt-get install -y libbrotli-dev
-          
-          # Install zlib development files
-          sudo apt-get install -y zlib1g-dev
 
-      - name: Cross-compile FreeType for x86_64
-        run: |
-          # Download and extract FreeType source
-          wget https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz
-          tar -xzf freetype-2.13.2.tar.gz
-          cd freetype-2.13.2
-          
-          # Configure and build FreeType for x86_64 Windows
-          # Disable WOFF2 support to avoid Brotli dependency
-          ./configure --host=x86_64-w64-mingw32 --prefix=$PWD/../freetype-x86_64 \
-            --disable-shared --enable-static --without-brotli --with-zlib
-          make -j$(nproc)
-          make install
-          cd ..
-          
-          # Show the compiled files
-          echo "FreeType x86_64 files:"
-          find freetype-x86_64 -type f | grep -E '\.(a|dll|lib)$'
-      
-      - name: Build native Wine tools
-        run: |
-          # First build the native tools
-          mkdir -p wine-tools
-          cd wine-tools
-          PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig" ../configure --enable-win64
-          make -j$(nproc) tools
-          cd ..
-      
-      - name: Configure and build for x86_64
-        run: |
-          mkdir -p build-x86_64
-          cd build-x86_64
-          # Use the cross-compiled FreeType
-          export FREETYPE_CFLAGS="-I$PWD/../freetype-x86_64/include/freetype2"
-          export FREETYPE_LIBS="-L$PWD/../freetype-x86_64/lib -lfreetype"
-          ../configure --host=x86_64-w64-mingw32 --with-wine-tools=$PWD/../wine-tools \
-            --enable-win64 --without-oss --disable-winemenubuilder --disable-tests \
-            --with-freetype
-          make -j$(nproc)
-      
-      - name: Create artifact
-        run: |
-          cd build-x86_64
-          tar -czf ../wine-x86_64.tar.gz .
-      
-      - name: Upload artifact
+      - name: "Upload x86_64 Artifact"
         uses: actions/upload-artifact@v4
         with:
           name: wine-x86_64
