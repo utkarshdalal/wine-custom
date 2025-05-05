@@ -43,8 +43,8 @@ jobs:
           wget -q https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
           sudo mkdir -p /mnt/arch/cache
           
-          # Use 7-Zip with proper flags for extraction
-          sudo 7z x android-ndk-r26b-linux.zip -aoa -o/mnt/arch/cache/
+          # Use 7-Zip with proper flags for extraction including symbolic links
+          sudo 7z x android-ndk-r26b-linux.zip -aoa -o/mnt/arch/cache/ -y -bb1
           sudo mv /mnt/arch/cache/android-ndk-r26b /mnt/arch/cache/android-ndk
           
           # Download and extract MinGW
