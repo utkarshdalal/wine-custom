@@ -110,7 +110,7 @@ jobs:
             unset CC CXX ARCH TOOLCHAIN_VERSION TOOLCHAIN_TRIPLE
             ../configure --enable-win64 --without-x
             echo 'Building wine-tools...'
-            make -j \$(nproc) tools
+            make -j $(nproc) __tooldeps__ nls/all
             cd ..
             
             # Debug the wine-tools directory
@@ -179,9 +179,6 @@ jobs:
       - name: "Build Wine for x86_64"
         run: |
           sudo arch-chroot /mnt/arch bash -c "
-            # Verify NDK is properly extracted
-            echo 'Checking NDK setup...'
-            ls -la /cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/
             
             # Setup environment
             export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:\$PATH
