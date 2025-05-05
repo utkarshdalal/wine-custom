@@ -80,6 +80,21 @@ jobs:
       - name: "Build Wine for ARM64"
         run: |
           sudo arch-chroot /mnt/arch bash -c "
+            # Debug X11 library installation
+            echo 'Checking X11 libraries installation...'
+            pacman -Q | grep -i x11
+            ls -la /usr/lib/libX*.so*
+            ls -la /usr/include/X11
+            
+            # Create symbolic links in prefix directory
+            echo 'Creating X11 symbolic links in prefix directory...'
+            mkdir -p /prefix/lib
+            mkdir -p /prefix/include
+            ln -sf /usr/lib/libX*.so* /prefix/lib/
+            cp -r /usr/include/X11 /prefix/include/
+            ls -la /prefix/lib/libX*.so*
+            ls -la /prefix/include/X11
+            
             # Verify NDK is properly extracted
             echo 'Checking NDK setup...'
             ls -la /cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/
