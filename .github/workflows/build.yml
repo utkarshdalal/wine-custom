@@ -50,6 +50,7 @@ jobs:
           # Download and extract MinGW
           wget -q http://techer.pascal.free.fr/Red-Rose_MinGW-w64-Toolchain/Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz
           sudo mkdir -p /mnt/arch/cache/mingw-temp
+          sudo mkdir -p /mnt/arch/cache/mingw
           sudo tar -xf Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz -C /mnt/arch/cache/mingw-temp
           sudo mv /mnt/arch/cache/mingw-temp/usr /mnt/arch/cache/mingw
           
