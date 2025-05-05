@@ -102,18 +102,28 @@ jobs:
             echo 'Current working directory:'
             pwd
             
-            # First build wine-tools properly
+            # First build wine-tools properly - important to unset compiler vars
             mkdir -p wine-tools
             cd wine-tools
             echo 'Configuring wine-tools...'
+            # Need to unset cross-compile vars for native build
+            unset CC CXX ARCH TOOLCHAIN_VERSION TOOLCHAIN_TRIPLE
             ../configure --enable-win64 --without-x
             echo 'Building wine-tools...'
-            make -j \$(nproc) __tooldeps__ nls/all
+            make -j \$(nproc) tools
             cd ..
             
             # Debug the wine-tools directory
             echo 'Wine-tools directory contents:'
             find wine-tools -type f | head -n 20
+            
+            # Reset environment for cross-compilation
+            export ANDROID_SDK=29
+            export ARCH=aarch64
+            export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
+            export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
+            export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
+            export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
             
             # Build wine for ARM64
             mkdir -p build-arm64
