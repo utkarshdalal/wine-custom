@@ -52,7 +52,7 @@ jobs:
           sudo mkdir -p /mnt/arch/cache/mingw-temp
           sudo mkdir -p /mnt/arch/cache/mingw
           sudo tar -xf Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz -C /mnt/arch/cache/mingw-temp
-          sudo mv /mnt/arch/cache/mingw-temp/usr /mnt/arch/cache/mingw
+          sudo mv /mnt/arch/cache/mingw-temp /mnt/arch/cache/mingw
           
           # Setup permissions
           sudo chown -R $(whoami):$(whoami) /mnt/arch/cache
@@ -83,7 +83,7 @@ jobs:
           sudo arch-chroot /mnt/arch bash -c "
             # Setup build environment for X11 dependencies
             export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:\$PATH
-            export ANDROID_SDK=29
+            export ANDROID_SDK=28
             export ARCH=aarch64
             export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
             export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
@@ -238,7 +238,7 @@ jobs:
           sudo arch-chroot /mnt/arch bash -c "
             # Setup environment
             export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:\$PATH
-            export ANDROID_SDK=29
+            export ANDROID_SDK=28
             export ARCH=aarch64
             export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
             export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
@@ -263,7 +263,7 @@ jobs:
             cd ..
             
             # Reset environment for cross-compilation
-            export ANDROID_SDK=29
+            export ANDROID_SDK=28
             export ARCH=aarch64
             export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
             export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
@@ -326,7 +326,7 @@ jobs:
           sudo arch-chroot /mnt/arch bash -c "
             # Setup build environment for X11 dependencies
             export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:\$PATH
-            export ANDROID_SDK=29
+            export ANDROID_SDK=28
             export ARCH=x86_64
             export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
             export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
@@ -481,7 +481,7 @@ jobs:
           sudo arch-chroot /mnt/arch bash -c "
             # Setup environment
             export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:\$PATH
-            export ANDROID_SDK=29
+            export ANDROID_SDK=28
             export ARCH=x86_64
             export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
             export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
