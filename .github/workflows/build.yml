@@ -23,7 +23,7 @@ jobs:
           sudo rm -f archlinux-bootstrap-x86_64.tar.zst
           sudo mv root.x86_64 /mnt/arch
 
-          sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm base base-devel git cmake meson ninja bison flex python-pip wget python-mako python-pyyaml unzip p7zip glslang python-docutils xmlto fop libxslt libx11 libxi libxext libxinerama libxrandr libxrender libxfixes libxcursor xorgproto libx11-dev:i386 libfreetype6-dev:i386"
+          sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm base base-devel git cmake meson ninja bison flex python-pip wget python-mako python-pyyaml unzip p7zip glslang python-docutils xmlto fop libxslt libx11 libxi libxext libxinerama libxrandr libxrender libxfixes libxcursor xorgproto"
 
       - name: "Setup Basic Android Runtime Environment"
         run: |
