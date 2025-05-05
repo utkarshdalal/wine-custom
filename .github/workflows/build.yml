@@ -39,16 +39,24 @@ jobs:
 
       - name: "Setup NDK for Cross-Compilation"
         run: |
-          # Setup NDK directories
-          sudo mkdir -p /mnt/arch/cache
-          
-          # Download NDK
+          # Download NDK and extract it properly
           wget -q https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
-          sudo mv android-ndk-r26b-linux.zip /mnt/arch/cache/
+          sudo mkdir -p /mnt/arch/cache
+          sudo 7z x android-ndk-r26b-linux.zip -o/mnt/arch/cache/
+          sudo mv /mnt/arch/cache/android-ndk-r26b /mnt/arch/cache/android-ndk
           
-          # Download MinGW
+          # Download and extract MinGW
           wget -q http://techer.pascal.free.fr/Red-Rose_MinGW-w64-Toolchain/Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz
-          sudo mv Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz /mnt/arch/cache/
+          sudo mkdir -p /mnt/arch/cache/mingw-temp
+          sudo tar -xf Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz -C /mnt/arch/cache/mingw-temp
+          sudo mv /mnt/arch/cache/mingw-temp/usr /mnt/arch/cache/mingw
+          
+          # Setup permissions
+          sudo chown -R $(whoami):$(whoami) /mnt/arch/cache
+          sudo chmod -R 755 /mnt/arch/cache
+          
+          # Verify NDK installation
+          ls -la /mnt/arch/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/ || echo "NDK bins not found!"
 
           # Setup working directory
           sudo mkdir -p /mnt/arch/wine-build
@@ -60,16 +68,26 @@ jobs:
           # Create prefix directory
           sudo mkdir -p /mnt/arch/prefix/lib
           sudo mkdir -p /mnt/arch/prefix/include
+          
+          # Make sure we have correct permissions
+          sudo chown -R $(whoami):$(whoami) /mnt/arch/wine-build
+          sudo chmod -R 755 /mnt/arch/wine-build
+          sudo chown -R $(whoami):$(whoami) /mnt/arch/prefix
+          sudo chmod -R 755 /mnt/arch/prefix
 
       - name: "Build Wine for ARM64"
         run: |
           sudo arch-chroot /mnt/arch bash -c "
+            # Verify NDK is properly extracted
+            echo 'Checking NDK setup...'
+            ls -la /cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/
+            
             # Setup environment
-            export PATH=\$PATH:/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin
+            export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:\$PATH
             export ANDROID_SDK=29
             export ARCH=aarch64
             export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
-            export CXX=\$CC++
+            export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
             export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
             export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
             export PREFIX=/prefix
@@ -134,12 +152,16 @@ jobs:
       - name: "Build Wine for x86_64"
         run: |
           sudo arch-chroot /mnt/arch bash -c "
+            # Verify NDK is properly extracted
+            echo 'Checking NDK setup...'
+            ls -la /cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/
+            
             # Setup environment
-            export PATH=\$PATH:/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin
+            export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:\$PATH
             export ANDROID_SDK=29
             export ARCH=x86_64
             export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
-            export CXX=\$CC++
+            export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
             export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
             export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
             export PREFIX=/prefix
