@@ -106,7 +106,7 @@ jobs:
             cd build-arm64
             ../configure --enable-archs=i386,x86_64 \
               --host=\$TOOLCHAIN_TRIPLE \
-              --with-wine-tools=/wine-build/wine-tools \
+              --with-wine-tools=../wine-tools \
               --prefix=\$PREFIX \
               --without-oss \
               --disable-winemenubuilder \
@@ -174,7 +174,7 @@ jobs:
             cd build-x86_64
             ../configure --enable-archs=i386,x86_64 \
               --host=\$TOOLCHAIN_TRIPLE \
-              --with-wine-tools=/wine-build/wine-tools \
+              --with-wine-tools=../wine-tools \
               --prefix=\$PREFIX \
               --without-oss \
               --disable-winemenubuilder \
