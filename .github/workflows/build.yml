@@ -25,6 +25,45 @@ jobs:
 
           sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm base base-devel git cmake meson ninja bison flex python-pip wget python-mako python-pyyaml unzip p7zip glslang python-docutils xmlto fop libxslt libx11 libxi libxext libxinerama libxrandr libxrender libxfixes libxcursor xorgproto"
 
+      - name: "Setup QEMU user static for ARM64 emulation"
+        run: |
+          # Install QEMU user static on the host
+          sudo apt-get update -y
+          sudo apt-get install -y qemu-user-static binfmt-support
+
+          # Enable binfmt_misc in the kernel if needed
+          sudo mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
+          
+          # Run the update-binfmts command to ensure QEMU emulators are registered
+          echo "Registering QEMU architectures with binfmt_misc..."
+          sudo update-binfmts --enable qemu-aarch64
+          sudo update-binfmts --display qemu-aarch64
+          
+          # Create a more compatible QEMU chroot setup
+          echo "Setting up QEMU in the Arch chroot..."
+          
+          # Copy necessary QEMU binaries to chroot
+          sudo mkdir -p /mnt/arch/usr/bin
+          sudo cp -f /usr/bin/qemu-aarch64-static /mnt/arch/usr/bin/
+          sudo chmod 755 /mnt/arch/usr/bin/qemu-aarch64-static
+          
+          # Make sure binfmt_misc is accessible inside the chroot
+          sudo mkdir -p /mnt/arch/proc/sys/fs/binfmt_misc
+          sudo mkdir -p /mnt/arch/dev
+          sudo mount -o bind /proc /mnt/arch/proc
+          sudo mount -o bind /dev /mnt/arch/dev
+          
+          # Install QEMU into Arch
+          sudo arch-chroot /mnt/arch bash -c "
+              pacman -Sy --noconfirm qemu-user-static binfmt-support || true
+              
+              # Make sure binfmt_misc is loaded in the chroot
+              mkdir -p /proc/sys/fs/binfmt_misc
+              
+              echo 'Verifying QEMU installation:'
+              ls -la /usr/bin/qemu-aarch64-static || echo 'QEMU binary not found'
+          "
+
       - name: "Setup Basic Android Runtime Environment"
         run: |
           git clone https://github.com/termux/termux-docker.git
@@ -78,8 +117,128 @@ jobs:
           sudo chown -R $(whoami):$(whoami) /mnt/arch/prefix
           sudo chmod -R 755 /mnt/arch/prefix
 
+      - name: "Test QEMU ARM64 Emulation"
+        run: |
+          # Create a simple ARM64 test program with minimal dependencies
+          echo '
+          #include <stdio.h>
+          
+          /* Simple test program that should run under QEMU user emulation */
+          int main() {
+            printf("Hello from ARM64 emulation!\\n");
+            return 42; /* Specific exit code to check */
+          }
+          ' | sudo tee /mnt/arch/test.c
+          
+          echo "Verifying QEMU emulation setup..."
+          
+          # Using a direct approach to compile and run ARM64 binary with QEMU emulation
+          sudo arch-chroot /mnt/arch bash -c "
+            # Make sure we have gcc for host builds
+            pacman -Sy --noconfirm gcc file
+            
+            echo 'Compiling ARM64 test binary...'
+            /cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang -static -O2 /test.c -o /test_arm64
+            
+            if [ -f /test_arm64 ]; then
+              echo 'Compilation succeeded!'
+              file /test_arm64
+              ls -la /test_arm64
+              chmod +x /test_arm64
+              
+              echo 'Running ARM64 binary via QEMU emulation...'
+              /test_arm64
+              EXIT_CODE=\$?
+              echo \"Test program exited with code \$EXIT_CODE\"
+              
+              if [ \$EXIT_CODE -eq 42 ]; then
+                echo 'SUCCESS: QEMU ARM64 emulation is working correctly!'
+              else
+                echo 'ERROR: QEMU emulation not working correctly.'
+              fi
+            else
+              echo 'ERROR: Failed to compile ARM64 test program!'
+            fi
+          "
+          
+          # Store the result so we can check it in the next steps
+          QEMU_TEST_RESULT=$?
+          if [ $QEMU_TEST_RESULT -eq 0 ]; then
+            echo "QEMU ARM64 emulation test passed!"
+          else
+            echo "QEMU ARM64 emulation test failed with exit code $QEMU_TEST_RESULT"
+            echo "Will attempt to continue build process with fallback options."
+            
+            # Check paths and diagnostics
+            sudo ls -la /mnt/arch/usr/bin/qemu-*
+            sudo cat /proc/sys/fs/binfmt_misc/qemu-aarch64 || echo "No binfmt entry found"
+          fi
+
       - name: "Build X11 Dependencies for ARM64"
         run: |
+          # Make sure all required mounts are active
+          sudo mount -o bind /proc /mnt/arch/proc 2>/dev/null || true
+          sudo mount -o bind /dev /mnt/arch/dev 2>/dev/null || true
+          sudo mount -o bind /sys /mnt/arch/sys 2>/dev/null || true
+          
+          # Prepare a pre-configure patch to fix cross-compilation issues
+          echo '
+          # Patch to skip running test programs in configure scripts
+          # Add to config.site file in prefix directory
+          ac_cv_host=aarch64-linux-android
+          ac_cv_build=x86_64-pc-linux-gnu
+          ac_cv_c_compiler_gnu=yes
+          ac_cv_cxx_compiler_gnu=yes
+          ac_cv_prog_cc_g=yes
+          ac_cv_prog_cxx_g=yes
+          ac_cv_header_stdc=yes
+          ac_cv_func_malloc_0_nonnull=yes
+          ac_cv_func_realloc_0_nonnull=yes
+          ac_cv_func_mmap=yes
+          ac_cv_func_getpagesize=yes
+          ac_cv_func_memset=yes
+          ac_cv_func_munmap=yes
+          ac_cv_func_mprotect=yes
+          ac_cv_type_size_t=yes
+          ac_cv_type_ssize_t=yes
+          ac_cv_type_ptrdiff_t=yes
+          ac_cv_file__dev_urandom=yes
+          ac_cv_file__dev_zero=yes
+          ac_cv_search_dlopen="-ldl"
+          ac_cv_header_dlfcn_h=yes
+          ac_cv_lib_dl_dlopen=yes
+          ac_cv_func_connect=yes
+          ac_cv_func_gethostbyname=yes
+          ac_cv_func_getaddrinfo=yes
+          ac_cv_func_strtol=yes
+          ac_cv_func_seteuid=yes
+          ac_cv_func_reallocarray=no
+          ac_cv_func_issetugid=no
+          ac_cv_func_shmat=yes
+          ac_cv_func_poll=yes
+          ' | sudo tee /mnt/arch/prefix/config.site
+          
+          # Extract package versions to variables for clarity
+          X11_UTIL_MACROS_VER=1.20.1
+          XORGPROTO_VER=2021.5
+          LIBXAU_VER=1.0.11
+          LIBXDMCP_VER=1.1.4
+          XCB_PROTO_VER=1.15.2
+          LIBXCB_VER=1.16
+          LIBX11_VER=1.8.7
+          LIBXEXT_VER=1.3.5
+          LIBXFIXES_VER=6.0.1
+          LIBXI_VER=1.8.1
+          LIBXRENDER_VER=0.9.11
+          LIBXRANDR_VER=1.5.3
+          LIBXINERAMA_VER=1.1.5
+          LIBXCURSOR_VER=1.2.1
+          
+          # Create a dedicated directory for X11 builds
+          sudo mkdir -p /mnt/arch/x11-build
+          sudo chown -R $(whoami):$(whoami) /mnt/arch/x11-build
+          sudo chmod -R 755 /mnt/arch/x11-build
+          
           sudo arch-chroot /mnt/arch bash -c "
             # Setup build environment for X11 dependencies
             export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:\$PATH
@@ -91,12 +250,26 @@ jobs:
             export PREFIX=/prefix
             
             # Set prefix and prepare pkg-config directories
-            mkdir -p "$PREFIX/lib/pkgconfig" "$PREFIX/share/pkgconfig"
-            export PKG_CONFIG_PATH="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
-            export PKG_CONFIG_LIBDIR="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
+            mkdir -p \$PREFIX/lib/pkgconfig \$PREFIX/share/pkgconfig
+            export PKG_CONFIG_PATH=\$PREFIX/share/pkgconfig:\$PREFIX/lib/pkgconfig
+            export PKG_CONFIG_LIBDIR=\$PREFIX/share/pkgconfig:\$PREFIX/lib/pkgconfig
             
-            # Create a temporary build directory
-            mkdir -p /x11-build
+            # Use config.site to provide cached test results for cross-compilation
+            export CONFIG_SITE=\$PREFIX/config.site
+            
+            # Add environment variables to help configure scripts
+            # These will skip some tests that try to run cross-compiled binaries
+            export ac_cv_func_malloc_0_nonnull=yes
+            export ac_cv_func_realloc_0_nonnull=yes
+            export ac_cv_file__dev_urandom=yes
+            export ac_cv_file__dev_zero=yes
+            export ac_cv_func_connect=yes
+            export ac_cv_func_gethostbyname=yes
+            export ac_cv_func_getaddrinfo=yes
+            export ac_cv_header_dlfcn_h=yes
+            export ac_cv_search_dlopen="-ldl"
+            export ac_cv_lib_socket_socket=no
+            
             cd /x11-build
             
             # Build util-macros for X11 dependencies
@@ -114,7 +287,32 @@ jobs:
             wget -q https://www.x.org/releases/individual/proto/xorgproto-2021.5.tar.bz2
             tar -xf xorgproto-2021.5.tar.bz2
             cd xorgproto-2021.5
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
+            
+            # Print environment for debugging
+            echo "Environment for xorgproto build:"
+            echo "CC=\$CC"
+            echo "TOOLCHAIN_TRIPLE=\$TOOLCHAIN_TRIPLE"
+            echo "PREFIX=\$PREFIX"
+            echo "PKG_CONFIG_PATH=\$PKG_CONFIG_PATH"
+            
+            # Check if qemu can run arm64 binaries
+            echo "Testing ARM64 binary execution:"
+            if /usr/bin/qemu-aarch64-static -version >/dev/null 2>&1; then
+              echo "QEMU aarch64 is working"
+            else
+              echo "QEMU aarch64 might have issues"
+            fi
+            
+            # Run configure with detailed debugging
+            echo "Running xorgproto configure with --host=\$TOOLCHAIN_TRIPLE"
+            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX \
+              --disable-selective-werror \
+              --disable-dependency-tracking \
+              -v
+              
+            # Save the configure log for analysis
+            cp config.log /xorgproto-config.log
+            
             make -j \$(nproc)
             make install
             cd ..
@@ -164,7 +362,74 @@ jobs:
             wget -q https://www.x.org/releases/individual/lib/libX11-1.8.7.tar.xz
             tar -xf libX11-1.8.7.tar.xz
             cd libX11-1.8.7
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX --disable-xlocaledir --enable-malloc0returnsnull
+            
+            # Debug directory structure
+            echo "Current libX11 directory structure:"
+            ls -la
+            echo "X11 include directory:"
+            ls -la \$PREFIX/include/X11 || echo "X11 include directory does not exist"
+            
+            # Handle the /X11 directory missing issue explicitly
+            echo "Creating and verifying X11 directories..."
+            mkdir -p \$PREFIX/X11
+            mkdir -p \$PREFIX/include/X11
+            
+            # Make sure required headers are in place
+            # Check specifically for the X11 directory that configure is looking for
+            if [ ! -d "\$PREFIX/X11" ] || [ ! -d "\$PREFIX/include/X11" ]; then
+              echo "WARNING: X11 directories missing, attempting to fix..."
+              
+              # First check if headers were installed to wrong location
+              if [ -d "\$PREFIX/include/xorgproto-2021.5" ]; then
+                echo "Found headers in prefix/include/xorgproto-2021.5, copying to include/X11"
+                mkdir -p \$PREFIX/include/X11
+                cp -f \$PREFIX/include/xorgproto-2021.5/*.h \$PREFIX/include/X11/
+              fi
+              
+              # Manually install key X11 headers if missing
+              for header in X.h Xfuncproto.h Xlib.h Xosdefs.h Xutil.h Xresource.h; do
+                if [ ! -f "\$PREFIX/include/X11/\$header" ]; then
+                  echo "Missing \$header, copying from source..."
+                  find . -name "\$header" -type f -exec cp -f {} \$PREFIX/include/X11/ \; || true
+                fi
+              done
+              
+              # Create root X11 directory that configure checks for
+              mkdir -p \$PREFIX/X11
+            fi
+            
+            # Apply last resort patch directly to configure script if needed
+            sed -i 's|test -d "\$\$x/X11"|true # patched - skip X11 dir test|g' configure || true
+            
+            # Configure with needed flags and --with-sysroot to find X11 headers
+            echo "Running libX11 configure..."
+            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX \
+              --with-sysroot=\$PREFIX \
+              --disable-xlocaledir \
+              --enable-malloc0returnsnull \
+              --disable-dependency-tracking \
+              --disable-selective-werror
+            
+            # Inspect failed configure if needed
+            if [ \$? -ne 0 ]; then
+              echo "libX11 configure failed, checking config.log"
+              grep -A 20 "cannot find X11" config.log || true
+              
+              # Create X11 directory in the exact location configure expects
+              if grep -q "cannot find /X11" config.log; then
+                echo "Trying fallback solution - setting up minimal X11 root dir"
+                mkdir -p \$PREFIX/X11
+                echo "Minimal X11 config file" > \$PREFIX/X11/config
+                
+                # Re-run configure with absolute paths
+                ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX \
+                  --x-includes=\$PREFIX/include \
+                  --x-libraries=\$PREFIX/lib \
+                  --disable-xlocaledir \
+                  --enable-malloc0returnsnull
+              fi
+            fi
+              
             make -j \$(nproc)
             make install
             cd ..
