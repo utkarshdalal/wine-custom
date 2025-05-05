@@ -88,20 +88,33 @@ jobs:
             export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
             export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
             export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
-            export PKG_CONFIG_PATH=/prefix/lib/pkgconfig
-            export PKG_CONFIG_LIBDIR=/prefix/lib/pkgconfig
             export PREFIX=/prefix
+            
+            # Set prefix and prepare pkg-config directories
+            mkdir -p "$PREFIX/lib/pkgconfig" "$PREFIX/share/pkgconfig"
+            export PKG_CONFIG_PATH="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
+            export PKG_CONFIG_LIBDIR="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
             
             # Create a temporary build directory
             mkdir -p /x11-build
             cd /x11-build
+            
+            # Build util-macros for X11 dependencies
+            echo 'Building util-macros...'
+            wget -q https://xorg.freedesktop.org/releases/individual/util/util-macros-1.20.1.tar.xz
+            tar -xf util-macros-1.20.1.tar.xz
+            cd util-macros-1.20.1
+            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
+            make -j \$(nproc)
+            make install
+            cd ..
             
             # Build xorgproto (headers only)
             echo 'Building xorgproto...'
             wget -q https://www.x.org/releases/individual/proto/xorgproto-2021.5.tar.bz2
             tar -xf xorgproto-2021.5.tar.bz2
             cd xorgproto-2021.5
-            ./configure --prefix=\$PREFIX
+            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
             make -j \$(nproc)
             make install
             cd ..
@@ -344,7 +357,7 @@ jobs:
             wget -q https://www.x.org/releases/individual/proto/xorgproto-2021.5.tar.bz2
             tar -xf xorgproto-2021.5.tar.bz2
             cd xorgproto-2021.5
-            ./configure --prefix=\$PREFIX
+            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
             make -j \$(nproc)
             make install
             cd ..
