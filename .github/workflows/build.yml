@@ -96,20 +96,29 @@ jobs:
             
             cd /wine-build
             
-            # Make sure wine-tools directory exists
-            mkdir -p wine-tools
+            # Debug the directory structure
+            echo 'Current directory structure:'
+            ls -la
+            echo 'Current working directory:'
+            pwd
             
-            # Build native tools (using absolute path)
+            # First build wine-tools properly
+            mkdir -p wine-tools
             cd wine-tools
+            echo 'Configuring wine-tools...'
             ../configure --enable-win64 --without-x
+            echo 'Building wine-tools...'
             make -j \$(nproc) __tooldeps__ nls/all
             cd ..
             
-            # Verify wine-tools was built properly
-            ls -la wine-tools
+            # Debug the wine-tools directory
+            echo 'Wine-tools directory contents:'
+            find wine-tools -type f | head -n 20
             
             # Build wine for ARM64
+            mkdir -p build-arm64
             cd build-arm64
+            echo 'Configuring ARM64 build...'
             ../configure --enable-archs=i386,x86_64 \
               --host=\$TOOLCHAIN_TRIPLE \
               --with-wine-tools=/wine-build/wine-tools \
@@ -176,11 +185,14 @@ jobs:
             
             cd /wine-build
             
-            # Verify wine-tools is available from previous step
-            ls -la wine-tools
+            # Debug the wine-tools directory
+            echo 'Wine-tools directory contents:'
+            find wine-tools -type f | head -n 20
             
             # Build wine for x86_64
+            mkdir -p build-x86_64
             cd build-x86_64
+            echo 'Configuring x86_64 build...'
             ../configure --enable-archs=i386,x86_64 \
               --host=\$TOOLCHAIN_TRIPLE \
               --with-wine-tools=/wine-build/wine-tools \
