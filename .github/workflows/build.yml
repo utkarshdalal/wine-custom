@@ -126,6 +126,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf v$PKG_VER.tar.gz
                 cd Vulkan-Headers-$PKG_VER
+                mkdir build && cd build
                 cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release ..
                 make -j $(nproc)
                 make install
@@ -140,6 +141,7 @@ jobs:
                 cd Vulkan-Loader-$PKG_VER
                 patch -p1 < ../packages/Vulkan-Loader/0001-fix-hardcoded-pathes.patch
                 patch -p1 < ../packages/Vulkan-Loader/0002-properly-enable-extensions.patch
+                mkdir build && cd build
                 cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DCMAKE_SYSTEM_NAME=Linux -DENABLE_WERROR=OFF -DVULKAN_HEADERS_INSTALL_DIR=$PREFIX -DUSE_GAS=OFF ..
                 make -j $(nproc)
                 make install
