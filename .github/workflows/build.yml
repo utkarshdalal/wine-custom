@@ -396,7 +396,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf xkeyboard-config-$PKG_VER.tar.xz
                 cd xkeyboard-config-$PKG_VER
-                meson setup build --prefix=$PREFIX -Dxkb-base=$PREFIX/share/X11/xkb -Dcompat-rules=true -Dxorg-rules-symlinks=false
+                meson setup build --cross-file=build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dxkb-base=$PREFIX/share/X11/xkb -Dbuildtype=release -Dcompat-rules=true -Dxorg-rules-symlinks=false
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
                 cd ..
@@ -411,7 +411,17 @@ jobs:
       - name: "Build Wine for ARM64"
         run: |
             sudo arch-chroot /mnt/arch bash << 'EOF'
+                #!/bin/bash
+                set -e  # Exit on any error
+                set -x  # Print commands as they're executed
                 # Setup environment
+                export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:$PATH
+                export ANDROID_SDK=29
+                export ARCH=aarch64
+                export CC=$ARCH-linux-android$ANDROID_SDK-clang
+                export CXX=$ARCH-linux-android$ANDROID_SDK-clang++
+                export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
+                export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
                 export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:\$PKG_CONFIG_PATH
                 export CPPFLAGS=\"-I$PREFIX/include\"
                 export LDFLAGS=\"-L$PREFIX/lib\"
@@ -430,11 +440,12 @@ jobs:
                 cd ..
         
                 # Reset environment for cross-compilation
-                export PATH=/mnt/arch/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/mnt/arch/cache/mingw/bin:$PATH
+                export PREFIX=/prefix
+                export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:$PATH
                 export ANDROID_SDK=29
                 export ARCH=aarch64
                 export CC=$ARCH-linux-android$ANDROID_SDK-clang
-                export CXX=$CC++
+                export CXX=$ARCH-linux-android$ANDROID_SDK-clang++
                 export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
                 export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
                 
