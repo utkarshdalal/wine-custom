@@ -445,13 +445,12 @@ jobs:
                 
                 # First build wine-tools properly - important to unset compiler vars
                 mkdir -p wine-tools
-                cd wine-tools
+                pushd wine-tools
                 echo 'Configuring wine-tools...'
-                # Need to unset cross-compile vars for native build
-                unset CC CXX ARCH TOOLCHAIN_VERSION TOOLCHAIN_TRIPLE
-                ../configure --enable-win64 --without-x
+                env -i bash -l -c "../configure --enable-win64 --without-x"
                 echo 'Building wine-tools...'
                 make -j$(nproc) __tooldeps__ nls/all
+                popd
                 cd ..
         
                 # Reset environment for cross-compilation
