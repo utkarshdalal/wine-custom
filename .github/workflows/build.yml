@@ -10,7 +10,8 @@ on:
 jobs:
   build:
     env:
-      PREFIX: /mnt/arch/prefix
+      PREFIX_FOLDER: /prefix
+      PREFIX: /mnt/arch$PREFIX_FOLDER
     runs-on: ubuntu-latest
     steps:
       - name: "Install ArchLinux"
@@ -87,7 +88,7 @@ jobs:
                 set -e  # Exit on any error
                 set -x  # Print commands as they're executed
                 # Setup build environment for X11 dependencies
-                export PATH=/mnt/arch/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/mnt/arch/cache/mingw/bin:$PATH
+                export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:$PATH
                 export ANDROID_SDK=29
                 export ARCH=aarch64
                 export CC=$ARCH-linux-android$ANDROID_SDK-clang
@@ -96,9 +97,9 @@ jobs:
                 export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
                 
                 # Set prefix and prepare pkg-config directories
-                mkdir -p "$PREFIX/lib/pkgconfig" "$PREFIX/share/pkgconfig"
-                export PKG_CONFIG_PATH="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
-                export PKG_CONFIG_LIBDIR="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
+                mkdir -p "$PREFIX_FOLDER/lib/pkgconfig" "$PREFIX_FOLDER/share/pkgconfig"
+                export PKG_CONFIG_PATH="$PREFIX_FOLDER/share/pkgconfig:$PREFIX_FOLDER/lib/pkgconfig"
+                export PKG_CONFIG_LIBDIR="$PREFIX_FOLDER/share/pkgconfig:$PREFIX_FOLDER/lib/pkgconfig"
                 export PKG_CONFIG="/usr/bin/pkg-config"
 
                 # Verify compiler works
@@ -118,7 +119,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf xcb-proto-$PKG_VER.tar.xz
                 cd xcb-proto-$PKG_VER
-                ./configure --prefix=$PREFIX
+                ./configure --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
@@ -130,7 +131,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf util-macros-$PKG_VER.tar.xz
                 cd util-macros-$PKG_VER
-                ./configure --prefix=$PREFIX
+                ./configure --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
@@ -142,7 +143,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf xorgproto-$PKG_VER.tar.xz
                 cd xorgproto-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
@@ -154,7 +155,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf xtrans-$PKG_VER.tar.xz
                 cd xtrans-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
@@ -166,7 +167,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXau-$PKG_VER.tar.xz
                 cd libXau-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
@@ -178,7 +179,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXdmcp-$PKG_VER.tar.xz
                 cd libXdmcp-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
@@ -190,7 +191,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libxcb-$PKG_VER.tar.xz
                 cd libxcb-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
@@ -202,7 +203,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libX11-$PKG_VER.tar.xz
                 cd libX11-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
                 cd ..
@@ -214,7 +215,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXfixes-$PKG_VER.tar.xz
                 cd libXfixes-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
@@ -226,7 +227,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXcomposite-$PKG_VER.tar.xz
                 cd libXcomposite-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
@@ -238,7 +239,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXext-$PKG_VER.tar.xz
                 cd libXext-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
                 cd ..
@@ -250,7 +251,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXrender-$PKG_VER.tar.xz
                 cd libXrender-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
                 cd ..
@@ -262,7 +263,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXcursor-$PKG_VER.tar.xz
                 cd libXcursor-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
                 cd ..
@@ -274,7 +275,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXi-$PKG_VER.tar.xz
                 cd libXi-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
                 cd ..
@@ -286,7 +287,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXinerama-$PKG_VER.tar.xz
                 cd libXinerama-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
                 cd ..
@@ -298,7 +299,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXrandr-$PKG_VER.tar.xz
                 cd libXrandr-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
                 cd ..
@@ -310,7 +311,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXxf86vm-$PKG_VER.tar.xz
                 cd libXxf86vm-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
                 cd ..
@@ -322,7 +323,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libxshmfence-$PKG_VER.tar.xz
                 cd libxshmfence-$PKG_VER
-                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --disable-futex
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --disable-futex
                 make -j$(nproc)
                 make install
                 cd ..
@@ -334,25 +335,25 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf xkeyboard-config-$PKG_VER.tar.xz
                 cd xkeyboard-config-$PKG_VER
-                ./configure -Dxkb-base=$PREFIX/share/X11/xkb -Dcompat-rules=true -Dxorg-rules-symlinks=false --prefix=$PREFIX
+                ./configure -Dxkb-base=$PREFIX_FOLDER/share/X11/xkb -Dcompat-rules=true -Dxorg-rules-symlinks=false --prefix=$PREFIX_FOLDER
                 make -j$(nproc)
                 make install
                 cd ..
                 
                 # Verify X11 libraries were properly built and installed
                 echo 'Checking installed X11 libraries...'
-                find $PREFIX/lib -name 'libX*.so' | sort
-                find $PREFIX/include/X11 -type f | head -n 5
-                find $PREFIX/lib/pkgconfig -name 'x*.pc' | sort
+                find $PREFIX_FOLDER/lib -name 'libX*.so' | sort
+                find $PREFIX_FOLDER/include/X11 -type f | head -n 5
+                find $PREFIX_FOLDER/lib/pkgconfig -name 'x*.pc' | sort
             EOF
 
       - name: "Build Wine for ARM64"
         run: |
             sudo arch-chroot /mnt/arch bash << 'EOF'
                 # Setup environment
-                export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:\$PKG_CONFIG_PATH
-                export CPPFLAGS=\"-I$PREFIX/include\"
-                export LDFLAGS=\"-L$PREFIX/lib\"
+                export PKG_CONFIG_PATH=$PREFIX_FOLDER/lib/pkgconfig:\$PKG_CONFIG_PATH
+                export CPPFLAGS=\"-I$PREFIX_FOLDER/include\"
+                export LDFLAGS=\"-L$PREFIX_FOLDER/lib\"
                 
                 cd /wine-build
                 
@@ -383,14 +384,14 @@ jobs:
                 ../configure --enable-archs=i386,x86_64 \
                 --host=$TOOLCHAIN_TRIPLE \
                 --with-wine-tools=/wine-build/wine-tools \
-                --prefix=$PREFIX \
+                --prefix=$PREFIX_FOLDER \
                 --without-oss \
                 --disable-winemenubuilder \
                 --disable-win16 \
                 --disable-tests \
                 --with-x \
-                --x-libraries=$PREFIX/lib \
-                --x-includes=$PREFIX/include \
+                --x-libraries=$PREFIX_FOLDER/lib \
+                --x-includes=$PREFIX_FOLDER/include \
                 --with-pulse \
                 --with-gstreamer \
                 --with-opengl \
@@ -424,7 +425,7 @@ jobs:
                 make install
 
                 # Package the build
-                cd $PREFIX
+                cd $PREFIX_FOLDER
                 tar -czf /wine-arm64.tar.gz .
             
                 # Copy output to workspace
@@ -441,9 +442,9 @@ jobs:
     #         export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
     #         export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
     #         export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
-    #         export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
-    #         export PKG_CONFIG_LIBDIR=$PREFIX/lib/pkgconfig
-    #         export PREFIX=$PREFIX-x86_64
+    #         export PKG_CONFIG_PATH=$PREFIX_FOLDER/lib/pkgconfig
+    #         export PKG_CONFIG_LIBDIR=$PREFIX_FOLDER/lib/pkgconfig
+    #         export PREFIX=$PREFIX_FOLDER-x86_64
             
     #         # Create a temporary build directory
     #         mkdir -p /x11-build-x86_64
@@ -454,7 +455,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/proto/xorgproto-2021.5.tar.bz2
     #         tar -xf xorgproto-2021.5.tar.bz2
     #         cd xorgproto-2021.5
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -464,7 +465,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libXau-1.0.11.tar.xz
     #         tar -xf libXau-1.0.11.tar.xz
     #         cd libXau-1.0.11
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -474,7 +475,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libXdmcp-1.1.4.tar.xz
     #         tar -xf libXdmcp-1.1.4.tar.xz
     #         cd libXdmcp-1.1.4
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -484,7 +485,7 @@ jobs:
     #         wget -q https://xorg.freedesktop.org/archive/individual/proto/xcb-proto-1.15.2.tar.xz
     #         tar -xf xcb-proto-1.15.2.tar.xz
     #         cd xcb-proto-1.15.2
-    #         ./configure --prefix=$PREFIX
+    #         ./configure --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -494,7 +495,7 @@ jobs:
     #         wget -q https://xorg.freedesktop.org/archive/individual/lib/libxcb-1.16.tar.xz
     #         tar -xf libxcb-1.16.tar.xz
     #         cd libxcb-1.16
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --disable-build-docs
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --disable-build-docs
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -504,7 +505,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libX11-1.8.7.tar.xz
     #         tar -xf libX11-1.8.7.tar.xz
     #         cd libX11-1.8.7
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --disable-xlocaledir --enable-malloc0returnsnull
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --disable-xlocaledir --enable-malloc0returnsnull
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -514,7 +515,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libXext-1.3.5.tar.xz
     #         tar -xf libXext-1.3.5.tar.xz
     #         cd libXext-1.3.5
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER --enable-malloc0returnsnull
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -524,7 +525,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libXfixes-6.0.1.tar.xz
     #         tar -xf libXfixes-6.0.1.tar.xz
     #         cd libXfixes-6.0.1
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -534,7 +535,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libXi-1.8.1.tar.xz
     #         tar -xf libXi-1.8.1.tar.xz
     #         cd libXi-1.8.1
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -544,7 +545,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libXrender-0.9.11.tar.xz
     #         tar -xf libXrender-0.9.11.tar.xz
     #         cd libXrender-0.9.11
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -554,7 +555,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libXrandr-1.5.3.tar.xz
     #         tar -xf libXrandr-1.5.3.tar.xz
     #         cd libXrandr-1.5.3
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -564,7 +565,7 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libXinerama-1.1.5.tar.xz
     #         tar -xf libXinerama-1.1.5.tar.xz
     #         cd libXinerama-1.1.5
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
@@ -574,16 +575,16 @@ jobs:
     #         wget -q https://www.x.org/releases/individual/lib/libXcursor-1.2.1.tar.xz
     #         tar -xf libXcursor-1.2.1.tar.xz
     #         cd libXcursor-1.2.1
-    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX_FOLDER
     #         make -j$(nproc)
     #         make install
     #         cd ..
             
     #         # Verify X11 libraries were properly built and installed
     #         echo 'Checking installed X11 libraries...'
-    #         find $PREFIX/lib -name 'libX*.so' | sort
-    #         find $PREFIX/include/X11 -type f | head -n 5
-    #         find $PREFIX/lib/pkgconfig -name 'x*.pc' | sort
+    #         find $PREFIX_FOLDER/lib -name 'libX*.so' | sort
+    #         find $PREFIX_FOLDER/include/X11 -type f | head -n 5
+    #         find $PREFIX_FOLDER/lib/pkgconfig -name 'x*.pc' | sort
     #       "
 
     #   - name: "Build Wine for x86_64"
@@ -597,10 +598,10 @@ jobs:
     #         export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
     #         export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
     #         export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
-    #         export PREFIX=$PREFIX-x86_64
-    #         export PKG_CONFIG_PATH=$PREFIX-x86_64/lib/pkgconfig:\$PKG_CONFIG_PATH
-    #         export CPPFLAGS=\"-I$PREFIX-x86_64/include\"
-    #         export LDFLAGS=\"-L$PREFIX-x86_64/lib\"
+    #         export PREFIX=$PREFIX_FOLDER-x86_64
+    #         export PKG_CONFIG_PATH=$PREFIX_FOLDER-x86_64/lib/pkgconfig:\$PKG_CONFIG_PATH
+    #         export CPPFLAGS=\"-I$PREFIX_FOLDER-x86_64/include\"
+    #         export LDFLAGS=\"-L$PREFIX_FOLDER-x86_64/lib\"
             
     #         cd /wine-build
             
@@ -611,14 +612,14 @@ jobs:
     #         ../configure --enable-archs=i386,x86_64 \
     #           --host=$TOOLCHAIN_TRIPLE \
     #           --with-wine-tools=/wine-build/wine-tools \
-    #           --prefix=$PREFIX \
+    #           --prefix=$PREFIX_FOLDER \
     #           --without-oss \
     #           --disable-winemenubuilder \
     #           --disable-win16 \
     #           --disable-tests \
     #           --with-x \
-    #           --x-libraries=$PREFIX/lib \
-    #           --x-includes=$PREFIX/include \
+    #           --x-libraries=$PREFIX_FOLDER/lib \
+    #           --x-includes=$PREFIX_FOLDER/include \
     #           --with-pulse \
     #           --with-gstreamer \
     #           --with-opengl \
