@@ -150,6 +150,33 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf xorgproto-$PKG_VER.tar.xz
                 cd xorgproto-$PKG_VER
+
+                # Apply xorgproto patch inline
+                echo 'diff -uNr xorgproto-2019.1/include/X11/Xos_r.h xorgproto-2019.1.mod/include/X11/Xos_r.h' > xorgproto-patch.patch
+                echo '--- xorgproto-2019.1/include/X11/Xos_r.h	2019-06-20 06:13:03.000000000 +0300' >> xorgproto-patch.patch
+                echo '+++ xorgproto-2019.1.mod/include/X11/Xos_r.h	2019-06-29 23:32:10.617173769 +0300' >> xorgproto-patch.patch
+                echo '@@ -248,7 +248,7 @@' >> xorgproto-patch.patch
+                echo ' ' >> xorgproto-patch.patch
+                echo ' #if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \' >> xorgproto-patch.patch
+                echo '-    defined(__APPLE__) || defined(__DragonFly__)' >> xorgproto-patch.patch
+                echo '+    defined(__APPLE__) || defined(__DragonFly__) || defined(__ANDROID__)' >> xorgproto-patch.patch
+                echo ' static __inline__ void _Xpw_copyPasswd(_Xgetpwparams p)' >> xorgproto-patch.patch
+                echo ' {' >> xorgproto-patch.patch
+                echo '    memcpy(&(p).pws, (p).pwp, sizeof(struct passwd));' >> xorgproto-patch.patch
+                echo '@@ -261,11 +261,7 @@' >> xorgproto-patch.patch
+                echo '    (p).len = strlen((p).pwp->pw_passwd);' >> xorgproto-patch.patch
+                echo '    strcpy((p).pws.pw_passwd,(p).pwp->pw_passwd);' >> xorgproto-patch.patch
+                echo ' ' >> xorgproto-patch.patch
+                echo '-   (p).pws.pw_class = (p).pws.pw_passwd + (p).len + 1;' >> xorgproto-patch.patch
+                echo '-   (p).len = strlen((p).pwp->pw_class);' >> xorgproto-patch.patch
+                echo '-   strcpy((p).pws.pw_class, (p).pwp->pw_class);' >> xorgproto-patch.patch
+                echo '- ' >> xorgproto-patch.patch
+                echo '-   (p).pws.pw_gecos = (p).pws.pw_class + (p).len + 1;' >> xorgproto-patch.patch
+                echo '+   (p).pws.pw_gecos = (p).pws.pw_passwd + (p).len + 1;' >> xorgproto-patch.patch
+                echo '    (p).len = strlen((p).pwp->pw_gecos);' >> xorgproto-patch.patch
+                echo '    strcpy((p).pws.pw_gecos, (p).pwp->pw_gecos);' >> xorgproto-patch.patch
+
+                patch -p1 < xorgproto-patch.patch
                 ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
                 make -j$(nproc)
                 make install
@@ -174,6 +201,23 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXau-$PKG_VER.tar.xz
                 cd libXau-$PKG_VER
+
+                # Apply libXau patch
+                echo 'diff -uNr libXau-1.0.8/AuLock.c libXau-1.0.8.mod/AuLock.c' > libXau-patch.patch
+                echo '--- libXau-1.0.8/AuLock.c	2013-05-25 01:04:09.000000000 +0300' >> libXau-patch.patch
+                echo '+++ libXau-1.0.8.mod/AuLock.c	2017-11-23 14:08:52.004479977 +0200' >> libXau-patch.patch
+                echo '@@ -91,7 +91,7 @@' >> libXau-patch.patch
+                echo ' 	    } else' >> libXau-patch.patch
+                echo ' #endif' >> libXau-patch.patch
+                echo ' 	    {' >> libXau-patch.patch
+                echo '-	    	if (link (creat_name, link_name) != -1)' >> libXau-patch.patch
+                echo '+	    	if (symlink (creat_name, link_name) != -1)' >> libXau-patch.patch
+                echo ' 		    return LOCK_SUCCESS;' >> libXau-patch.patch
+                echo ' 		if (errno == ENOENT) {' >> libXau-patch.patch
+                echo ' 		    creat_fd = -1;	/* force re-creat next time around */' >> libXau-patch.patch
+
+                patch -p1 < libXau-patch.patch
+
                 ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
                 make -j$(nproc)
                 make install
@@ -286,6 +330,27 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libXcursor-$PKG_VER.tar.xz
                 cd libXcursor-$PKG_VER
+
+                # Apply libXcursor patch
+                echo '--- 18-libXcursor/src/library.c	2022-04-03 14:00:22.000000000 -0300' > fix-paths.patch
+                echo '+++ 18-libXcursor.mod/src/library.c	2024-03-02 18:30:38.118742000 -0300' >> fix-paths.patch
+                echo '@@ -25,11 +25,11 @@' >> fix-paths.patch
+                echo ' #include <string.h>' >> fix-paths.patch
+                echo ' ' >> fix-paths.patch
+                echo ' #ifndef ICONDIR' >> fix-paths.patch
+                echo '-#define ICONDIR "/usr/X11R6/lib/X11/icons"' >> fix-paths.patch
+                echo '+#define ICONDIR "/data/data/com.micewine.emu/files/usr/X11R6/lib/X11/icons"' >> fix-paths.patch
+                echo ' #endif' >> fix-paths.patch
+                echo ' ' >> fix-paths.patch
+                echo ' #ifndef XCURSORPATH' >> fix-paths.patch
+                echo '-#define XCURSORPATH "~/.local/share/icons:~/.icons:/usr/share/icons:/usr/share/pixmaps:"ICONDIR' >> fix-paths.patch
+                echo '+#define XCURSORPATH "~/.local/share/icons:~/.icons:/data/data/com.micewine.emu/files/usr/share/icons:/data/data/com.micewine.emu/files/usr/share/pixmaps:"ICONDIR' >> fix-paths.patch
+                echo ' #endif' >> fix-paths.patch
+                echo ' ' >> fix-paths.patch
+                echo ' typedef struct XcursorInherit {' >> fix-paths.patch
+
+                patch -p1 < fix-paths.patch
+
                 ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
