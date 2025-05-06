@@ -119,6 +119,91 @@ jobs:
                 mkdir -p /x11-build
                 cd /x11-build
 
+                 # Build Vulkan-Headers
+                echo 'Building Vulkan-Headers...'
+                PKG_VER=1.4.304
+                SRC_URL=https://github.com/KhronosGroup/Vulkan-Headers/archive/v$PKG_VER.tar.gz
+                wget -q $SRC_URL
+                tar -xf v$PKG_VER.tar.gz
+                cd v$PKG_VER
+                cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release ..
+                make -j $(nproc)
+                make install
+                cd ..
+
+                # Build Vulkan-Loader
+                echo 'Building Vulkan-Loader...'
+                PKG_VER=1.4.304
+                SRC_URL=https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/v$PKG_VER.tar.gz
+                wget -q $SRC_URL
+                tar -xf v$PKG_VER.tar.gz
+                cd v$PKG_VER
+                cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DCMAKE_SYSTEM_NAME=Linux -DENABLE_WERROR=OFF -DVULKAN_HEADERS_INSTALL_DIR=$PREFIX -DUSE_GAS=OFF ..
+                make -j $(nproc)
+                make install
+                cd ..
+
+                # Build Vulkan-Volk
+                echo 'Building Vulkan-Volk...'
+                PKG_VER=1.4.304
+                SRC_URL=https://github.com/zeux/volk/archive/refs/tags/$PKG_VER.tar.gz
+                wget -q $SRC_URL
+                tar -xf $PKG_VER.tar.gz
+                cd volk-$PKG_VER
+                mkdir build && cd build
+                cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release -DVOLK_INSTALL=ON ..
+                make -j$(nproc)
+                make install
+                cd ../../
+
+                # Build Vulkan-Tools
+                echo 'Building Vulkan-Tools...'
+                PKG_VER=1.4.304
+                SRC_URL=https://github.com/KhronosGroup/Vulkan-Tools/archive/refs/tags/v$PKG_VER.tar.gz
+                wget -q $SRC_URL
+                tar -xf v$PKG_VER.tar.gz
+                cd Vulkan-Tools-$PKG_VER
+                mkdir build && cd build
+                cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_SYSTEM_NAME=Linux -DBUILD_CUBE=ON -DBUILD_ICD=OFF -DBUILD_WSI_WAYLAND_SUPPORT=OFF -DBUILD_WSI_XCB_SUPPORT=ON -DBUILD_WSI_XLIB_SUPPORT=ON -DVULKAN_HEADERS_INSTALL_DIR=$PREFIX ..
+                make -j$(nproc)
+                make install
+                cd ../../
+
+                # Build libglvnd
+                echo 'Building libglvnd...'
+                PKG_VER=1.7.0
+                SRC_URL=https://github.com/NVIDIA/libglvnd/archive/refs/tags/v$PKG_VER.tar.gz
+                wget -q $SRC_URL
+                tar -xf v$PKG_VER.tar.gz
+                cd libglvnd-$PKG_VER
+                meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dtls=false ..
+                ninja -C build -j$(nproc)
+                ninja -C build -j$(nproc) install
+                cd ..
+
+                # Build Mesa Vulkan Wrapper
+                echo 'Building Mesa Vulkan Wrapper...'
+                git clone https://github.com/xMeM/mesa mesa-vulkan-wrapper
+                cd mesa-vulkan-wrapper
+                git checkout e65c7eb6ee2f9903c3256f2677beb1d98464103f
+                mkdir build && cd build
+                meson setup --cross-file=../../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dgallium-drivers= -Dvulkan-drivers=wrapper -Dglvnd=disabled -Dplatforms=x11 -Dxmlconfig=enabled -Dllvm=disabled -Dopengl=false -Degl=disabled -Dzstd=enabled ..
+                ninja -C build -j$(nproc)
+                ninja -C build -j$(nproc) install
+                cd ../../
+
+                # Build mesa-demos
+                echo 'Building mesa-demos...'
+                PKG_VER=9.0.0
+                SRC_URL=https://mesa.freedesktop.org/archive/demos/mesa-demos-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf mesa-demos-$PKG_VER.tar.xz
+                cd mesa-demos-$PKG_VER
+                meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dlibdrm=disabled -Dvulkan=disabled -Dwayland=disabled -Dwith-system-data-files=true -Dglut=disabled -Degl=disabled ..
+                ninja -C build -j$(nproc)
+                ninja -C build -j$(nproc) install
+                cd ..
+
                 # Build xcb-proto
                 echo 'Building xcb-proto...'
                 PKG_VER=1.17.0
@@ -412,91 +497,6 @@ jobs:
                 tar -xf xkeyboard-config-$PKG_VER.tar.xz
                 cd xkeyboard-config-$PKG_VER
                 meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dxkb-base=$PREFIX/share/X11/xkb -Dbuildtype=release -Dcompat-rules=true -Dxorg-rules-symlinks=false
-                ninja -C build -j$(nproc)
-                ninja -C build -j$(nproc) install
-                cd ..
-
-                # Build Vulkan-Headers
-                echo 'Building Vulkan-Headers...'
-                PKG_VER=1.4.304
-                SRC_URL=https://github.com/KhronosGroup/Vulkan-Headers/archive/v$PKG_VER.tar.gz
-                wget -q $SRC_URL
-                tar -xf v$PKG_VER.tar.xz
-                cd v$PKG_VER
-                cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release ..
-                make -j $(nproc)
-                make install
-                cd ..
-
-                # Build Vulkan-Loader
-                echo 'Building Vulkan-Loader...'
-                PKG_VER=1.4.304
-                SRC_URL=https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/v$PKG_VER.tar.gz
-                wget -q $SRC_URL
-                tar -xf v$PKG_VER.tar.xz
-                cd v$PKG_VER
-                cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DCMAKE_SYSTEM_NAME=Linux -DENABLE_WERROR=OFF -DVULKAN_HEADERS_INSTALL_DIR=$PREFIX -DUSE_GAS=OFF ..
-                make -j $(nproc)
-                make install
-                cd ..
-
-                # Build Vulkan-Volk
-                echo 'Building Vulkan-Volk...'
-                PKG_VER=1.4.304
-                SRC_URL=https://github.com/zeux/volk/archive/refs/tags/$PKG_VER.tar.gz
-                wget -q $SRC_URL
-                tar -xf $PKG_VER.tar.gz
-                cd volk-$PKG_VER
-                mkdir build && cd build
-                cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release -DVOLK_INSTALL=ON ..
-                make -j$(nproc)
-                make install
-                cd ../../
-
-                # Build Vulkan-Tools
-                echo 'Building Vulkan-Tools...'
-                PKG_VER=1.4.304
-                SRC_URL=https://github.com/KhronosGroup/Vulkan-Tools/archive/refs/tags/v$PKG_VER.tar.gz
-                wget -q $SRC_URL
-                tar -xf v$PKG_VER.tar.gz
-                cd Vulkan-Tools-$PKG_VER
-                mkdir build && cd build
-                cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_SYSTEM_NAME=Linux -DBUILD_CUBE=ON -DBUILD_ICD=OFF -DBUILD_WSI_WAYLAND_SUPPORT=OFF -DBUILD_WSI_XCB_SUPPORT=ON -DBUILD_WSI_XLIB_SUPPORT=ON -DVULKAN_HEADERS_INSTALL_DIR=$PREFIX ..
-                make -j$(nproc)
-                make install
-                cd ../../
-
-                # Build libglvnd
-                echo 'Building libglvnd...'
-                PKG_VER=1.7.0
-                SRC_URL=https://github.com/NVIDIA/libglvnd/archive/refs/tags/v$PKG_VER.tar.gz
-                wget -q $SRC_URL
-                tar -xf v$PKG_VER.tar.gz
-                cd libglvnd-$PKG_VER
-                meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dtls=false ..
-                ninja -C build -j$(nproc)
-                ninja -C build -j$(nproc) install
-                cd ..
-
-                # Build Mesa Vulkan Wrapper
-                echo 'Building Mesa Vulkan Wrapper...'
-                git clone https://github.com/xMeM/mesa mesa-vulkan-wrapper
-                cd mesa-vulkan-wrapper
-                git checkout e65c7eb6ee2f9903c3256f2677beb1d98464103f
-                mkdir build && cd build
-                meson setup --cross-file=../../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dgallium-drivers= -Dvulkan-drivers=wrapper -Dglvnd=disabled -Dplatforms=x11 -Dxmlconfig=enabled -Dllvm=disabled -Dopengl=false -Degl=disabled -Dzstd=enabled ..
-                ninja -C build -j$(nproc)
-                ninja -C build -j$(nproc) install
-                cd ../../
-
-                # Build mesa-demos
-                echo 'Building mesa-demos...'
-                PKG_VER=9.0.0
-                SRC_URL=https://mesa.freedesktop.org/archive/demos/mesa-demos-$PKG_VER.tar.xz
-                wget -q $SRC_URL
-                tar -xf mesa-demos-$PKG_VER.tar.xz
-                cd mesa-demos-$PKG_VER
-                meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dlibdrm=disabled -Dvulkan=disabled -Dwayland=disabled -Dwith-system-data-files=true -Dglut=disabled -Degl=disabled ..
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
                 cd ..
