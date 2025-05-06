@@ -390,13 +390,29 @@ jobs:
                 cd ..
 
                 # Build xkeyboard-config
+                # Prepare Meson cross-file for ARM64
+                mkdir -p build_config
+                cat > build_config/meson-cross-file-aarch64 << 'EOF'
+                [binaries]
+                pkg-config = '/usr/bin/pkg-config'
+                cmake = '/usr/bin/cmake'
+
+                [host_machine]
+                system = 'linux'
+                cpu_family = 'aarch64'
+                cpu = 'aarch64'
+                endian = 'little'
+
+                [properties]
+                skip_sanity_check = true
+                EOF
                 echo 'Building xkeyboard-config...'
                 PKG_VER=2.41
                 SRC_URL=https://xorg.freedesktop.org/archive/individual/data/xkeyboard-config/xkeyboard-config-$PKG_VER.tar.xz
                 wget -q $SRC_URL
                 tar -xf xkeyboard-config-$PKG_VER.tar.xz
                 cd xkeyboard-config-$PKG_VER
-                meson setup build --cross-file=../../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dxkb-base=$PREFIX/share/X11/xkb -Dbuildtype=release -Dcompat-rules=true -Dxorg-rules-symlinks=false
+                meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dxkb-base=$PREFIX/share/X11/xkb -Dbuildtype=release -Dcompat-rules=true -Dxorg-rules-symlinks=false
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
                 cd ..
