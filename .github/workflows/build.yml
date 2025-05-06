@@ -396,7 +396,7 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf xkeyboard-config-$PKG_VER.tar.xz
                 cd xkeyboard-config-$PKG_VER
-                meson setup build --cross-file=build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dxkb-base=$PREFIX/share/X11/xkb -Dbuildtype=release -Dcompat-rules=true -Dxorg-rules-symlinks=false
+                meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dxkb-base=$PREFIX/share/X11/xkb -Dbuildtype=release -Dcompat-rules=true -Dxorg-rules-symlinks=false
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
                 cd ..
