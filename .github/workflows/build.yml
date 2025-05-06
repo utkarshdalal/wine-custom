@@ -91,8 +91,8 @@ jobs:
                 export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:$PATH
                 export ANDROID_SDK=29
                 export ARCH=aarch64
-                export CC=$ARCH-linux-android$ANDROID_SDK-clang -target $ARCH-linux-android$ANDROID_SDK"
-                export CXX=$ARCH-linux-android$ANDROID_SDK-clang++ -target $ARCH-linux-android$ANDROID_SDK"
+                export CC="$ARCH-linux-android$ANDROID_SDK-clang -target $ARCH-linux-android$ANDROID_SDK"
+                export CXX="$ARCH-linux-android$ANDROID_SDK-clang++ -target $ARCH-linux-android$ANDROID_SDK"
                 export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
                 export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
                 
