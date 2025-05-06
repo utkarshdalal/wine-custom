@@ -392,7 +392,7 @@ jobs:
                 # Build xkeyboard-config
                 # Prepare Meson cross-file for ARM64
                 mkdir -p build_config
-                cat > build_config/meson-cross-file-aarch64 << 'EOF'
+                cat > build_config/meson-cross-file-aarch64 << 'MESON_CROSS_EOF'
                 [binaries]
                 pkg-config = '/usr/bin/pkg-config'
                 cmake = '/usr/bin/cmake'
@@ -405,7 +405,7 @@ jobs:
 
                 [properties]
                 skip_sanity_check = true
-                EOF
+                MESON_CROSS_EOF
                 echo 'Building xkeyboard-config...'
                 PKG_VER=2.41
                 SRC_URL=https://xorg.freedesktop.org/archive/individual/data/xkeyboard-config/xkeyboard-config-$PKG_VER.tar.xz
