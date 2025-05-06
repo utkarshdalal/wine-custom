@@ -91,8 +91,14 @@ jobs:
                 export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:$PATH
                 export ANDROID_SDK=29
                 export ARCH=aarch64
-                export CC="$ARCH-linux-android$ANDROID_SDK-clang -target $ARCH-linux-android$ANDROID_SDK"
-                export CXX="$ARCH-linux-android$ANDROID_SDK-clang++ -target $ARCH-linux-android$ANDROID_SDK"
+                export NDK_BIN=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin
+                # call the real clang driver and specify the target triple yourself
+                export CC="$NDK_BIN/clang \
+                --target=$ARCH-linux-android$ANDROID_SDK \
+                -isysroot $NDK_BIN/../sysroot"
+                export CXX="$NDK_BIN/clang++ \
+                --target=$ARCH-linux-android$ANDROID_SDK \
+                -isysroot $NDK_BIN/../sysroot"
                 export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
                 export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
                 
@@ -105,18 +111,7 @@ jobs:
                 # Check compiler and linker details
                 echo "Compiler details:"
                 $CC --version
-                
-                # Find out what linker is being used
-                $CC -Wl,--version
-                
-                # Explicitly set LD to the AArch64 linker if available
-                if [ -f "/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ld" ]; then
-                    export LD="/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ld"
-                    echo "Using explicit LD: $LD"
-                elif [ -f "/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android$ANDROID_SDK-ld" ]; then
-                    export LD="/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android$ANDROID_SDK-ld"
-                    echo "Using explicit LD: $LD"
-                fi
+                $CC -### -c -o /dev/null /dev/null  # show driver’s link phase
 
                 # Verify compiler works
                 echo "Testing compiler..."
