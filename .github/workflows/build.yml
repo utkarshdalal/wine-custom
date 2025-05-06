@@ -429,17 +429,6 @@ jobs:
                 #!/bin/bash
                 set -e  # Exit on any error
                 set -x  # Print commands as they're executed
-                # Setup environment
-                export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:$PATH
-                export ANDROID_SDK=29
-                export ARCH=aarch64
-                export CC=$ARCH-linux-android$ANDROID_SDK-clang
-                export CXX=$ARCH-linux-android$ANDROID_SDK-clang++
-                export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
-                export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
-                export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:\$PKG_CONFIG_PATH
-                export CPPFLAGS=\"-I$PREFIX/include\"
-                export LDFLAGS=\"-L$PREFIX/lib\"
                 
                 cd /wine-build
                 
@@ -451,8 +440,8 @@ jobs:
                 echo 'Building wine-tools...'
                 make -j$(nproc) __tooldeps__ nls/all
                 popd
-        
-                # Reset environment for cross-compilation
+
+                # Setup environment
                 export PREFIX=/prefix
                 export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:$PATH
                 export ANDROID_SDK=29
@@ -461,6 +450,19 @@ jobs:
                 export CXX=$ARCH-linux-android$ANDROID_SDK-clang++
                 export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
                 export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
+                
+                # Set prefix and prepare pkg-config directories
+                mkdir -p "$PREFIX/lib/pkgconfig" "$PREFIX/share/pkgconfig"
+                export PKG_CONFIG_PATH="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
+                export PKG_CONFIG_LIBDIR="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
+                export PKG_CONFIG="/usr/bin/pkg-config"
+
+                # Check compiler and linker details
+                echo "Compiler details:"
+                $CC --version
+                
+                # Find out what linker is being used
+                $CC -Wl,--version
                 
                 # Build wine for ARM64
                 mkdir -p build-arm64
