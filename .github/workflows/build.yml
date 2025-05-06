@@ -451,7 +451,6 @@ jobs:
                 echo 'Building wine-tools...'
                 make -j$(nproc) __tooldeps__ nls/all
                 popd
-                cd ..
         
                 # Reset environment for cross-compilation
                 export PREFIX=/prefix
