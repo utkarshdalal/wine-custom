@@ -9,6 +9,8 @@ on:
 
 jobs:
   build:
+    env:
+      PREFIX: /mnt/arch/prefix
     runs-on: ubuntu-latest
     steps:
       - name: "Install ArchLinux"
@@ -24,45 +26,6 @@ jobs:
           sudo mv root.x86_64 /mnt/arch
 
           sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm base base-devel git cmake meson ninja bison flex python-pip wget python-mako python-pyyaml unzip p7zip glslang python-docutils xmlto fop libxslt libx11 libxi libxext libxinerama libxrandr libxrender libxfixes libxcursor xorgproto"
-
-      - name: "Setup QEMU user static for ARM64 emulation"
-        run: |
-          # Install QEMU user static on the host
-          sudo apt-get update -y
-          sudo apt-get install -y qemu-user-static binfmt-support
-
-          # Enable binfmt_misc in the kernel if needed
-          sudo mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
-          
-          # Run the update-binfmts command to ensure QEMU emulators are registered
-          echo "Registering QEMU architectures with binfmt_misc..."
-          sudo update-binfmts --enable qemu-aarch64
-          sudo update-binfmts --display qemu-aarch64
-          
-          # Create a more compatible QEMU chroot setup
-          echo "Setting up QEMU in the Arch chroot..."
-          
-          # Copy necessary QEMU binaries to chroot
-          sudo mkdir -p /mnt/arch/usr/bin
-          sudo cp -f /usr/bin/qemu-aarch64-static /mnt/arch/usr/bin/
-          sudo chmod 755 /mnt/arch/usr/bin/qemu-aarch64-static
-          
-          # Make sure binfmt_misc is accessible inside the chroot
-          sudo mkdir -p /mnt/arch/proc/sys/fs/binfmt_misc
-          sudo mkdir -p /mnt/arch/dev
-          sudo mount -o bind /proc /mnt/arch/proc
-          sudo mount -o bind /dev /mnt/arch/dev
-          
-          # Install QEMU into Arch
-          sudo arch-chroot /mnt/arch bash -c "
-              pacman -Sy --noconfirm qemu-user-static binfmt-support || true
-              
-              # Make sure binfmt_misc is loaded in the chroot
-              mkdir -p /proc/sys/fs/binfmt_misc
-              
-              echo 'Verifying QEMU installation:'
-              ls -la /usr/bin/qemu-aarch64-static || echo 'QEMU binary not found'
-          "
 
       - name: "Setup Basic Android Runtime Environment"
         run: |
@@ -108,727 +71,587 @@ jobs:
           sudo mkdir -p /mnt/arch/wine-build/build-x86_64
           
           # Create prefix directory
-          sudo mkdir -p /mnt/arch/prefix/lib
-          sudo mkdir -p /mnt/arch/prefix/include
+          sudo mkdir -p $PREFIX/lib
+          sudo mkdir -p $PREFIX/include
           
           # Make sure we have correct permissions
           sudo chown -R $(whoami):$(whoami) /mnt/arch/wine-build
           sudo chmod -R 755 /mnt/arch/wine-build
-          sudo chown -R $(whoami):$(whoami) /mnt/arch/prefix
-          sudo chmod -R 755 /mnt/arch/prefix
-
-      - name: "Test QEMU ARM64 Emulation"
-        run: |
-          # Create a simple ARM64 test program with minimal dependencies
-          echo '
-          #include <stdio.h>
-          
-          /* Simple test program that should run under QEMU user emulation */
-          int main() {
-            printf("Hello from ARM64 emulation!\\n");
-            return 42; /* Specific exit code to check */
-          }
-          ' | sudo tee /mnt/arch/test.c
-          
-          echo "Verifying QEMU emulation setup..."
-          
-          # Using a direct approach to compile and run ARM64 binary with QEMU emulation
-          sudo arch-chroot /mnt/arch bash -c "
-            # Make sure we have gcc for host builds
-            pacman -Sy --noconfirm gcc file
-            
-            echo 'Compiling ARM64 test binary...'
-            /cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang -static -O2 /test.c -o /test_arm64
-            
-            if [ -f /test_arm64 ]; then
-              echo 'Compilation succeeded!'
-              file /test_arm64
-              ls -la /test_arm64
-              chmod +x /test_arm64
-              
-              echo 'Running ARM64 binary via QEMU emulation...'
-              /test_arm64
-              EXIT_CODE=\$?
-              echo \"Test program exited with code \$EXIT_CODE\"
-              
-              if [ \$EXIT_CODE -eq 42 ]; then
-                echo 'SUCCESS: QEMU ARM64 emulation is working correctly!'
-              else
-                echo 'ERROR: QEMU emulation not working correctly.'
-              fi
-            else
-              echo 'ERROR: Failed to compile ARM64 test program!'
-            fi
-          "
-          
-          # Store the result so we can check it in the next steps
-          QEMU_TEST_RESULT=$?
-          if [ $QEMU_TEST_RESULT -eq 0 ]; then
-            echo "QEMU ARM64 emulation test passed!"
-          else
-            echo "QEMU ARM64 emulation test failed with exit code $QEMU_TEST_RESULT"
-            echo "Will attempt to continue build process with fallback options."
-            
-            # Check paths and diagnostics
-            sudo ls -la /mnt/arch/usr/bin/qemu-*
-            sudo cat /proc/sys/fs/binfmt_misc/qemu-aarch64 || echo "No binfmt entry found"
-          fi
+          sudo chown -R $(whoami):$(whoami) $PREFIX
+          sudo chmod -R 755 $PREFIX
 
       - name: "Build X11 Dependencies for ARM64"
         run: |
-          # Make sure all required mounts are active
-          sudo mount -o bind /proc /mnt/arch/proc 2>/dev/null || true
-          sudo mount -o bind /dev /mnt/arch/dev 2>/dev/null || true
-          sudo mount -o bind /sys /mnt/arch/sys 2>/dev/null || true
-          
-          # Prepare a pre-configure patch to fix cross-compilation issues
-          echo '
-          # Patch to skip running test programs in configure scripts
-          # Add to config.site file in prefix directory
-          ac_cv_host=aarch64-linux-android
-          ac_cv_build=x86_64-pc-linux-gnu
-          ac_cv_c_compiler_gnu=yes
-          ac_cv_cxx_compiler_gnu=yes
-          ac_cv_prog_cc_g=yes
-          ac_cv_prog_cxx_g=yes
-          ac_cv_header_stdc=yes
-          ac_cv_func_malloc_0_nonnull=yes
-          ac_cv_func_realloc_0_nonnull=yes
-          ac_cv_func_mmap=yes
-          ac_cv_func_getpagesize=yes
-          ac_cv_func_memset=yes
-          ac_cv_func_munmap=yes
-          ac_cv_func_mprotect=yes
-          ac_cv_type_size_t=yes
-          ac_cv_type_ssize_t=yes
-          ac_cv_type_ptrdiff_t=yes
-          ac_cv_file__dev_urandom=yes
-          ac_cv_file__dev_zero=yes
-          ac_cv_search_dlopen="-ldl"
-          ac_cv_header_dlfcn_h=yes
-          ac_cv_lib_dl_dlopen=yes
-          ac_cv_func_connect=yes
-          ac_cv_func_gethostbyname=yes
-          ac_cv_func_getaddrinfo=yes
-          ac_cv_func_strtol=yes
-          ac_cv_func_seteuid=yes
-          ac_cv_func_reallocarray=no
-          ac_cv_func_issetugid=no
-          ac_cv_func_shmat=yes
-          ac_cv_func_poll=yes
-          ' | sudo tee /mnt/arch/prefix/config.site
-          
-          # Extract package versions to variables for clarity
-          X11_UTIL_MACROS_VER=1.20.1
-          XORGPROTO_VER=2021.5
-          LIBXAU_VER=1.0.11
-          LIBXDMCP_VER=1.1.4
-          XCB_PROTO_VER=1.15.2
-          LIBXCB_VER=1.16
-          LIBX11_VER=1.8.7
-          LIBXEXT_VER=1.3.5
-          LIBXFIXES_VER=6.0.1
-          LIBXI_VER=1.8.1
-          LIBXRENDER_VER=0.9.11
-          LIBXRANDR_VER=1.5.3
-          LIBXINERAMA_VER=1.1.5
-          LIBXCURSOR_VER=1.2.1
-          
-          # Create a dedicated directory for X11 builds
-          sudo mkdir -p /mnt/arch/x11-build
-          sudo chown -R $(whoami):$(whoami) /mnt/arch/x11-build
-          sudo chmod -R 755 /mnt/arch/x11-build
-          
-          sudo arch-chroot /mnt/arch bash -c "
-            # Setup build environment for X11 dependencies
-            export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:\$PATH
-            export ANDROID_SDK=28
-            export ARCH=aarch64
-            export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
-            export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
-            export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
-            export PREFIX=/prefix
-            
-            # Set prefix and prepare pkg-config directories
-            mkdir -p \$PREFIX/lib/pkgconfig \$PREFIX/share/pkgconfig
-            export PKG_CONFIG_PATH=\$PREFIX/share/pkgconfig:\$PREFIX/lib/pkgconfig
-            export PKG_CONFIG_LIBDIR=\$PREFIX/share/pkgconfig:\$PREFIX/lib/pkgconfig
-            
-            # Use config.site to provide cached test results for cross-compilation
-            export CONFIG_SITE=\$PREFIX/config.site
-            
-            # Add environment variables to help configure scripts
-            # These will skip some tests that try to run cross-compiled binaries
-            export ac_cv_func_malloc_0_nonnull=yes
-            export ac_cv_func_realloc_0_nonnull=yes
-            export ac_cv_file__dev_urandom=yes
-            export ac_cv_file__dev_zero=yes
-            export ac_cv_func_connect=yes
-            export ac_cv_func_gethostbyname=yes
-            export ac_cv_func_getaddrinfo=yes
-            export ac_cv_header_dlfcn_h=yes
-            export ac_cv_search_dlopen="-ldl"
-            export ac_cv_lib_socket_socket=no
-            
-            cd /x11-build
-            
-            # Build util-macros for X11 dependencies
-            echo 'Building util-macros...'
-            wget -q https://xorg.freedesktop.org/releases/individual/util/util-macros-1.20.1.tar.xz
-            tar -xf util-macros-1.20.1.tar.xz
-            cd util-macros-1.20.1
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build xorgproto (headers only)
-            echo 'Building xorgproto...'
-            wget -q https://www.x.org/releases/individual/proto/xorgproto-2021.5.tar.bz2
-            tar -xf xorgproto-2021.5.tar.bz2
-            cd xorgproto-2021.5
-            
-            # Print environment for debugging
-            echo "Environment for xorgproto build:"
-            echo "CC=\$CC"
-            echo "TOOLCHAIN_TRIPLE=\$TOOLCHAIN_TRIPLE"
-            echo "PREFIX=\$PREFIX"
-            echo "PKG_CONFIG_PATH=\$PKG_CONFIG_PATH"
-            
-            # Check if qemu can run arm64 binaries
-            echo "Testing ARM64 binary execution:"
-            if /usr/bin/qemu-aarch64-static -version >/dev/null 2>&1; then
-              echo "QEMU aarch64 is working"
-            else
-              echo "QEMU aarch64 might have issues"
-            fi
-            
-            # Run configure with detailed debugging
-            echo "Running xorgproto configure with --host=\$TOOLCHAIN_TRIPLE"
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX \
-              --disable-selective-werror \
-              --disable-dependency-tracking \
-              -v
-              
-            # Save the configure log for analysis
-            cp config.log /xorgproto-config.log
-            
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXau
-            echo 'Building libXau...'
-            wget -q https://www.x.org/releases/individual/lib/libXau-1.0.11.tar.xz
-            tar -xf libXau-1.0.11.tar.xz
-            cd libXau-1.0.11
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXdmcp
-            echo 'Building libXdmcp...'
-            wget -q https://www.x.org/releases/individual/lib/libXdmcp-1.1.4.tar.xz
-            tar -xf libXdmcp-1.1.4.tar.xz
-            cd libXdmcp-1.1.4
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build xcb-proto
-            echo 'Building xcb-proto...'
-            wget -q https://xorg.freedesktop.org/archive/individual/proto/xcb-proto-1.15.2.tar.xz
-            tar -xf xcb-proto-1.15.2.tar.xz
-            cd xcb-proto-1.15.2
-            ./configure --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libxcb
-            echo 'Building libxcb...'
-            wget -q https://xorg.freedesktop.org/archive/individual/lib/libxcb-1.16.tar.xz
-            tar -xf libxcb-1.16.tar.xz
-            cd libxcb-1.16
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX --disable-build-docs
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libX11
-            echo 'Building libX11...'
-            wget -q https://www.x.org/releases/individual/lib/libX11-1.8.7.tar.xz
-            tar -xf libX11-1.8.7.tar.xz
-            cd libX11-1.8.7
-            
-            # Debug directory structure
-            echo "Current libX11 directory structure:"
-            ls -la
-            echo "X11 include directory:"
-            ls -la \$PREFIX/include/X11 || echo "X11 include directory does not exist"
-            
-            # Handle the /X11 directory missing issue explicitly
-            echo "Creating and verifying X11 directories..."
-            mkdir -p \$PREFIX/X11
-            mkdir -p \$PREFIX/include/X11
-            
-            # Make sure required headers are in place
-            # Check specifically for the X11 directory that configure is looking for
-            if [ ! -d "\$PREFIX/X11" ] || [ ! -d "\$PREFIX/include/X11" ]; then
-              echo "WARNING: X11 directories missing, attempting to fix..."
-              
-              # First check if headers were installed to wrong location
-              if [ -d "\$PREFIX/include/xorgproto-2021.5" ]; then
-                echo "Found headers in prefix/include/xorgproto-2021.5, copying to include/X11"
-                mkdir -p \$PREFIX/include/X11
-                cp -f \$PREFIX/include/xorgproto-2021.5/*.h \$PREFIX/include/X11/
-              fi
-              
-              # Manually install key X11 headers if missing
-              for header in X.h Xfuncproto.h Xlib.h Xosdefs.h Xutil.h Xresource.h; do
-                if [ ! -f "\$PREFIX/include/X11/\$header" ]; then
-                  echo "Missing \$header, copying from source..."
-                  find . -name "\$header" -type f -exec cp -f {} \$PREFIX/include/X11/ \; || true
-                fi
-              done
-              
-              # Create root X11 directory that configure checks for
-              mkdir -p \$PREFIX/X11
-            fi
-            
-            # Apply last resort patch directly to configure script if needed
-            sed -i 's|test -d "\$\$x/X11"|true # patched - skip X11 dir test|g' configure || true
-            
-            # Configure with needed flags and --with-sysroot to find X11 headers
-            echo "Running libX11 configure..."
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX \
-              --with-sysroot=\$PREFIX \
-              --disable-xlocaledir \
-              --enable-malloc0returnsnull \
-              --disable-dependency-tracking \
-              --disable-selective-werror
-            
-            # Inspect failed configure if needed
-            if [ \$? -ne 0 ]; then
-              echo "libX11 configure failed, checking config.log"
-              grep -A 20 "cannot find X11" config.log || true
-              
-              # Create X11 directory in the exact location configure expects
-              if grep -q "cannot find /X11" config.log; then
-                echo "Trying fallback solution - setting up minimal X11 root dir"
-                mkdir -p \$PREFIX/X11
-                echo "Minimal X11 config file" > \$PREFIX/X11/config
+            sudo arch-chroot /mnt/arch bash -c "
+                # Setup build environment for X11 dependencies
+                export PATH=/mnt/arch/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/mnt/arch/cache/mingw/bin:$PATH
+                export ANDROID_SDK=29
+                export ARCH=aarch64
+                export CC=$ARCH-linux-android$ANDROID_SDK-clang
+                export CXX=$CC++
+                export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
+                export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
                 
-                # Re-run configure with absolute paths
-                ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX \
-                  --x-includes=\$PREFIX/include \
-                  --x-libraries=\$PREFIX/lib \
-                  --disable-xlocaledir \
-                  --enable-malloc0returnsnull
-              fi
-            fi
-              
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXext
-            echo 'Building libXext...'
-            wget -q https://www.x.org/releases/individual/lib/libXext-1.3.5.tar.xz
-            tar -xf libXext-1.3.5.tar.xz
-            cd libXext-1.3.5
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX --enable-malloc0returnsnull
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXfixes
-            echo 'Building libXfixes...'
-            wget -q https://www.x.org/releases/individual/lib/libXfixes-6.0.1.tar.xz
-            tar -xf libXfixes-6.0.1.tar.xz
-            cd libXfixes-6.0.1
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXi
-            echo 'Building libXi...'
-            wget -q https://www.x.org/releases/individual/lib/libXi-1.8.1.tar.xz
-            tar -xf libXi-1.8.1.tar.xz
-            cd libXi-1.8.1
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXrender
-            echo 'Building libXrender...'
-            wget -q https://www.x.org/releases/individual/lib/libXrender-0.9.11.tar.xz
-            tar -xf libXrender-0.9.11.tar.xz
-            cd libXrender-0.9.11
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXrandr
-            echo 'Building libXrandr...'
-            wget -q https://www.x.org/releases/individual/lib/libXrandr-1.5.3.tar.xz
-            tar -xf libXrandr-1.5.3.tar.xz
-            cd libXrandr-1.5.3
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXinerama
-            echo 'Building libXinerama...'
-            wget -q https://www.x.org/releases/individual/lib/libXinerama-1.1.5.tar.xz
-            tar -xf libXinerama-1.1.5.tar.xz
-            cd libXinerama-1.1.5
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXcursor
-            echo 'Building libXcursor...'
-            wget -q https://www.x.org/releases/individual/lib/libXcursor-1.2.1.tar.xz
-            tar -xf libXcursor-1.2.1.tar.xz
-            cd libXcursor-1.2.1
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Verify X11 libraries were properly built and installed
-            echo 'Checking installed X11 libraries...'
-            find \$PREFIX/lib -name 'libX*.so' | sort
-            find \$PREFIX/include/X11 -type f | head -n 5
-            find \$PREFIX/lib/pkgconfig -name 'x*.pc' | sort
-          "
+                # Set prefix and prepare pkg-config directories
+                mkdir -p "$PREFIX/lib/pkgconfig" "$PREFIX/share/pkgconfig"
+                export PKG_CONFIG_PATH="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
+                export PKG_CONFIG_LIBDIR="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
+                export PKG_CONFIG="/usr/bin/pkg-config"
+                
+                # Create a temporary build directory
+                mkdir -p /x11-build
+                cd /x11-build
+
+                # Build xcb-proto
+                echo 'Building xcb-proto...'
+                PKG_VER=1.17.0
+                SRC_URL=https://xorg.freedesktop.org/archive/individual/proto/xcb-proto-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf xcb-proto-$PKG_VER.tar.xz
+                cd xcb-proto-$PKG_VER
+                ./configure --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+                
+                # Build util-macros for X11 dependencies
+                echo 'Building util-macros...'
+                PKG_VER=1.20.1
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/util/util-macros-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf util-macros-$PKG_VER.tar.xz
+                cd util-macros-$PKG_VER
+                ./configure --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+                
+                # Build xorgproto (headers only)
+                echo 'Building xorgproto...'
+                PKG_VER=2024.1
+                SRC_URL=https://xorg.freedesktop.org/archive/individual/proto/xorgproto-$PKG_VER.tar.bz2
+                wget -q $SRC_URL
+                tar -xf xorgproto-$PKG_VER.tar.bz2
+                cd xorgproto-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build xtrans
+                echo 'Building xtrans...'
+                PKG_VER=1.5.0
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/xtrans-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf xtrans-$PKG_VER.tar.xz
+                cd xtrans-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+                
+                # Build libXau
+                echo 'Building libXau...'
+                PKG_VER=1.0.11
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXau-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXau-$PKG_VER.tar.xz
+                cd libXau-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+                
+                # Build libXdmcp
+                echo 'Building libXdmcp...'
+                PKG_VER=1.1.5
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXdmcp-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXdmcp-$PKG_VER.tar.xz
+                cd libXdmcp-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+                
+                # Build libxcb
+                echo 'Building libxcb...'
+                PKG_VER=1.17.0
+                SRC_URL=https://xorg.freedesktop.org/archive/individual/lib/libxcb-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libxcb-$PKG_VER.tar.xz
+                cd libxcb-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+                
+                # Build libX11
+                echo 'Building libX11...'
+                PKG_VER=1.8.9
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libX11-$PKG_VER.tar.xz 
+                wget -q $SRC_URL
+                tar -xf libX11-$PKG_VER.tar.xz
+                cd libX11-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build libXfixes
+                echo 'Building libXfixes...'
+                PKG_VER=6.0.1
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXfixes-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXfixes-$PKG_VER.tar.xz
+                cd libXfixes-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build libXcomposite
+                echo 'Building libXcomposite...'
+                PKG_VER=0.4.6
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXcomposite-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXcomposite-$PKG_VER.tar.xz
+                cd libXcomposite-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+                
+                # Build libXext
+                echo 'Building libXext...'
+                PKG_VER=1.3.6
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXext-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXext-$PKG_VER.tar.xz
+                cd libXext-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build libXrender
+                echo 'Building libXrender...'
+                PKG_VER=0.9.11
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXrender-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXrender-$PKG_VER.tar.xz
+                cd libXrender-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build libXcursor
+                echo 'Building libXcursor...'
+                PKG_VER=1.2.2
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXcursor-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXcursor-$PKG_VER.tar.xz
+                cd libXcursor-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                make -j$(nproc)
+                make install
+                cd ..
+                
+                # Build libXi
+                echo 'Building libXi...'
+                PKG_VER=1.8.1
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXi-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXi-$PKG_VER.tar.xz
+                cd libXi-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build libXinerama
+                echo 'Building libXinerama...'
+                PKG_VER=1.1.5
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXinerama-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXinerama-$PKG_VER.tar.xz
+                cd libXinerama-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build libXrandr
+                echo 'Building libXrandr...'
+                PKG_VER=1.5.4
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXrandr-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXrandr-$PKG_VER.tar.xz
+                cd libXrandr-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build libXxf86vm
+                echo 'Building libXxf86vm...'
+                PKG_VER=1.1.5
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libXxf86vm-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libXxf86vm-$PKG_VER.tar.xz
+                cd libXxf86vm-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build libxshmfence
+                echo 'Building libxshmfence...'
+                PKG_VER=1.3.2
+                SRC_URL=https://xorg.freedesktop.org/releases/individual/lib/libxshmfence-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf libxshmfence-$PKG_VER.tar.xz
+                cd libxshmfence-$PKG_VER
+                ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --disable-futex
+                make -j$(nproc)
+                make install
+                cd ..
+
+                # Build xkeyboard-config
+                echo 'Building xkeyboard-config...'
+                PKG_VER=2.41
+                SRC_URL=https://xorg.freedesktop.org/archive/individual/data/xkeyboard-config/xkeyboard-config-$PKG_VER.tar.xz
+                wget -q $SRC_URL
+                tar -xf xkeyboard-config-$PKG_VER.tar.xz
+                cd xkeyboard-config-$PKG_VER
+                ./configure -Dxkb-base=$PREFIX/share/X11/xkb -Dcompat-rules=true -Dxorg-rules-symlinks=false --prefix=$PREFIX
+                make -j$(nproc)
+                make install
+                cd ..
+                
+                # Verify X11 libraries were properly built and installed
+                echo 'Checking installed X11 libraries...'
+                find $PREFIX/lib -name 'libX*.so' | sort
+                find $PREFIX/include/X11 -type f | head -n 5
+                find $PREFIX/lib/pkgconfig -name 'x*.pc' | sort
+            "
 
       - name: "Build Wine for ARM64"
         run: |
-          sudo arch-chroot /mnt/arch bash -c "
-            # Setup environment
-            export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:\$PATH
-            export ANDROID_SDK=28
-            export ARCH=aarch64
-            export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
-            export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
-            export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
-            export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
-            export PREFIX=/prefix
-            export PKG_CONFIG_PATH=/prefix/lib/pkgconfig:\$PKG_CONFIG_PATH
-            export CPPFLAGS=\"-I/prefix/include\"
-            export LDFLAGS=\"-L/prefix/lib\"
-            
-            cd /wine-build
-            
-            # First build wine-tools properly - important to unset compiler vars
-            mkdir -p wine-tools
-            cd wine-tools
-            echo 'Configuring wine-tools...'
-            # Need to unset cross-compile vars for native build
-            unset CC CXX ARCH TOOLCHAIN_VERSION TOOLCHAIN_TRIPLE
-            ../configure --enable-win64 --without-x
-            echo 'Building wine-tools...'
-            make -j \$(nproc) tools
-            cd ..
-            
-            # Reset environment for cross-compilation
-            export ANDROID_SDK=28
-            export ARCH=aarch64
-            export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
-            export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
-            export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
-            export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
-            
-            # Build wine for ARM64
-            mkdir -p build-arm64
-            cd build-arm64
-            echo 'Configuring ARM64 build...'
-            ../configure --enable-archs=i386,x86_64 \
-              --host=\$TOOLCHAIN_TRIPLE \
-              --with-wine-tools=/wine-build/wine-tools \
-              --prefix=\$PREFIX \
-              --without-oss \
-              --disable-winemenubuilder \
-              --disable-win16 \
-              --disable-tests \
-              --with-x \
-              --x-libraries=\$PREFIX/lib \
-              --x-includes=\$PREFIX/include \
-              --with-pulse \
-              --with-gstreamer \
-              --with-opengl \
-              --with-gnutls \
-              --with-mingw=gcc \
-              --with-xinput \
-              --with-xinput2 \
-              --enable-nls \
-              --without-xshm \
-              --without-xxf86vm \
-              --without-osmesa \
-              --without-usb \
-              --without-sdl \
-              --without-cups \
-              --without-netapi \
-              --without-pcap \
-              --without-gphoto \
-              --without-v4l2 \
-              --without-pcsclite \
-              --without-wayland \
-              --without-opencl \
-              --without-dbus \
-              --without-sane \
-              --without-udev \
-              --without-capi
-            make -j \$(nproc)
-            cd ..
-            
-            # Package the build
-            cd build-arm64
-            tar -czf /wine-arm64.tar.gz .
-          "
-          
-          # Copy output to workspace
-          sudo cp /mnt/arch/wine-arm64.tar.gz ./
+            sudo arch-chroot /mnt/arch bash -c "
+                # Setup environment
+                export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:\$PKG_CONFIG_PATH
+                export CPPFLAGS=\"-I$PREFIX/include\"
+                export LDFLAGS=\"-L$PREFIX/lib\"
+                
+                cd /wine-build
+                
+                # First build wine-tools properly - important to unset compiler vars
+                mkdir -p wine-tools
+                cd wine-tools
+                echo 'Configuring wine-tools...'
+                # Need to unset cross-compile vars for native build
+                unset CC CXX ARCH TOOLCHAIN_VERSION TOOLCHAIN_TRIPLE
+                ../configure --enable-win64 --without-x
+                echo 'Building wine-tools...'
+                make -j$(nproc) __tooldeps__ nls/all
+                cd ..
+        
+                # Reset environment for cross-compilation
+                export PATH=/mnt/arch/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/mnt/arch/cache/mingw/bin:$PATH
+                export ANDROID_SDK=29
+                export ARCH=aarch64
+                export CC=$ARCH-linux-android$ANDROID_SDK-clang
+                export CXX=$CC++
+                export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
+                export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
+                
+                # Build wine for ARM64
+                mkdir -p build-arm64
+                cd build-arm64
+                echo 'Configuring ARM64 build...'
+                ../configure --enable-archs=i386,x86_64 \
+                --host=$TOOLCHAIN_TRIPLE \
+                --with-wine-tools=/wine-build/wine-tools \
+                --prefix=$PREFIX \
+                --without-oss \
+                --disable-winemenubuilder \
+                --disable-win16 \
+                --disable-tests \
+                --with-x \
+                --x-libraries=$PREFIX/lib \
+                --x-includes=$PREFIX/include \
+                --with-pulse \
+                --with-gstreamer \
+                --with-opengl \
+                --with-gnutls \
+                --with-mingw=gcc \
+                --with-xinput \
+                --with-xinput2 \
+                --enable-nls \
+                --without-xshm \
+                --without-xxf86vm \
+                --without-osmesa \
+                --without-usb \
+                --without-sdl \
+                --without-cups \
+                --without-netapi \
+                --without-pcap \
+                --without-gphoto \
+                --without-v4l2 \
+                --without-pcsclite \
+                --without-wayland \
+                --without-opencl \
+                --without-dbus \
+                --without-sane \
+                --without-udev \
+                --without-capi
 
-      - name: "Build X11 Dependencies for x86_64"
-        run: |
-          sudo arch-chroot /mnt/arch bash -c "
-            # Setup build environment for X11 dependencies
-            export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:\$PATH
-            export ANDROID_SDK=28
-            export ARCH=x86_64
-            export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
-            export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
-            export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
-            export PKG_CONFIG_PATH=/prefix/lib/pkgconfig
-            export PKG_CONFIG_LIBDIR=/prefix/lib/pkgconfig
-            export PREFIX=/prefix-x86_64
-            
-            # Create a temporary build directory
-            mkdir -p /x11-build-x86_64
-            cd /x11-build-x86_64
-            
-            # Build xorgproto (headers only)
-            echo 'Building xorgproto...'
-            wget -q https://www.x.org/releases/individual/proto/xorgproto-2021.5.tar.bz2
-            tar -xf xorgproto-2021.5.tar.bz2
-            cd xorgproto-2021.5
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXau
-            echo 'Building libXau...'
-            wget -q https://www.x.org/releases/individual/lib/libXau-1.0.11.tar.xz
-            tar -xf libXau-1.0.11.tar.xz
-            cd libXau-1.0.11
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXdmcp
-            echo 'Building libXdmcp...'
-            wget -q https://www.x.org/releases/individual/lib/libXdmcp-1.1.4.tar.xz
-            tar -xf libXdmcp-1.1.4.tar.xz
-            cd libXdmcp-1.1.4
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build xcb-proto
-            echo 'Building xcb-proto...'
-            wget -q https://xorg.freedesktop.org/archive/individual/proto/xcb-proto-1.15.2.tar.xz
-            tar -xf xcb-proto-1.15.2.tar.xz
-            cd xcb-proto-1.15.2
-            ./configure --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libxcb
-            echo 'Building libxcb...'
-            wget -q https://xorg.freedesktop.org/archive/individual/lib/libxcb-1.16.tar.xz
-            tar -xf libxcb-1.16.tar.xz
-            cd libxcb-1.16
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX --disable-build-docs
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libX11
-            echo 'Building libX11...'
-            wget -q https://www.x.org/releases/individual/lib/libX11-1.8.7.tar.xz
-            tar -xf libX11-1.8.7.tar.xz
-            cd libX11-1.8.7
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX --disable-xlocaledir --enable-malloc0returnsnull
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXext
-            echo 'Building libXext...'
-            wget -q https://www.x.org/releases/individual/lib/libXext-1.3.5.tar.xz
-            tar -xf libXext-1.3.5.tar.xz
-            cd libXext-1.3.5
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX --enable-malloc0returnsnull
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXfixes
-            echo 'Building libXfixes...'
-            wget -q https://www.x.org/releases/individual/lib/libXfixes-6.0.1.tar.xz
-            tar -xf libXfixes-6.0.1.tar.xz
-            cd libXfixes-6.0.1
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXi
-            echo 'Building libXi...'
-            wget -q https://www.x.org/releases/individual/lib/libXi-1.8.1.tar.xz
-            tar -xf libXi-1.8.1.tar.xz
-            cd libXi-1.8.1
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXrender
-            echo 'Building libXrender...'
-            wget -q https://www.x.org/releases/individual/lib/libXrender-0.9.11.tar.xz
-            tar -xf libXrender-0.9.11.tar.xz
-            cd libXrender-0.9.11
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXrandr
-            echo 'Building libXrandr...'
-            wget -q https://www.x.org/releases/individual/lib/libXrandr-1.5.3.tar.xz
-            tar -xf libXrandr-1.5.3.tar.xz
-            cd libXrandr-1.5.3
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXinerama
-            echo 'Building libXinerama...'
-            wget -q https://www.x.org/releases/individual/lib/libXinerama-1.1.5.tar.xz
-            tar -xf libXinerama-1.1.5.tar.xz
-            cd libXinerama-1.1.5
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Build libXcursor
-            echo 'Building libXcursor...'
-            wget -q https://www.x.org/releases/individual/lib/libXcursor-1.2.1.tar.xz
-            tar -xf libXcursor-1.2.1.tar.xz
-            cd libXcursor-1.2.1
-            ./configure --host=\$TOOLCHAIN_TRIPLE --prefix=\$PREFIX
-            make -j \$(nproc)
-            make install
-            cd ..
-            
-            # Verify X11 libraries were properly built and installed
-            echo 'Checking installed X11 libraries...'
-            find \$PREFIX/lib -name 'libX*.so' | sort
-            find \$PREFIX/include/X11 -type f | head -n 5
-            find \$PREFIX/lib/pkgconfig -name 'x*.pc' | sort
-          "
+                echo 'Building wine...'
+                make -j$(nproc)
 
-      - name: "Build Wine for x86_64"
-        run: |
-          sudo arch-chroot /mnt/arch bash -c "
-            # Setup environment
-            export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:\$PATH
-            export ANDROID_SDK=28
-            export ARCH=x86_64
-            export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
-            export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
-            export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
-            export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
-            export PREFIX=/prefix-x86_64
-            export PKG_CONFIG_PATH=/prefix-x86_64/lib/pkgconfig:\$PKG_CONFIG_PATH
-            export CPPFLAGS=\"-I/prefix-x86_64/include\"
-            export LDFLAGS=\"-L/prefix-x86_64/lib\"
+                echo 'Installing wine...'
+                make install
+
+                # Package the build
+                cd $PREFIX
+                tar -czf /wine-arm64.tar.gz .
             
-            cd /wine-build
+                # Copy output to workspace
+            "
+            sudo cp /mnt/arch/wine-arm64.tar.gz ./
+
+    #   - name: "Build X11 Dependencies for x86_64"
+    #     run: |
+    #       sudo arch-chroot /mnt/arch bash -c "
+    #         # Setup build environment for X11 dependencies
+    #         export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:\$PATH
+    #         export ANDROID_SDK=28
+    #         export ARCH=x86_64
+    #         export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
+    #         export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
+    #         export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
+    #         export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
+    #         export PKG_CONFIG_LIBDIR=$PREFIX/lib/pkgconfig
+    #         export PREFIX=$PREFIX-x86_64
             
-            # Build wine for x86_64
-            mkdir -p build-x86_64
-            cd build-x86_64
-            echo 'Configuring x86_64 build...'
-            ../configure --enable-archs=i386,x86_64 \
-              --host=\$TOOLCHAIN_TRIPLE \
-              --with-wine-tools=/wine-build/wine-tools \
-              --prefix=\$PREFIX \
-              --without-oss \
-              --disable-winemenubuilder \
-              --disable-win16 \
-              --disable-tests \
-              --with-x \
-              --x-libraries=\$PREFIX/lib \
-              --x-includes=\$PREFIX/include \
-              --with-pulse \
-              --with-gstreamer \
-              --with-opengl \
-              --with-gnutls \
-              --with-mingw=gcc \
-              --with-xinput \
-              --with-xinput2 \
-              --enable-nls \
-              --without-xshm \
-              --without-xxf86vm \
-              --without-osmesa \
-              --without-usb \
-              --without-sdl \
-              --without-cups \
-              --without-netapi \
-              --without-pcap \
-              --without-gphoto \
-              --without-v4l2 \
-              --without-pcsclite \
-              --without-wayland \
-              --without-opencl \
-              --without-dbus \
-              --without-sane \
-              --without-udev \
-              --without-capi
-            make -j \$(nproc)
-            cd ..
+    #         # Create a temporary build directory
+    #         mkdir -p /x11-build-x86_64
+    #         cd /x11-build-x86_64
             
-            # Package the build
-            cd build-x86_64
-            tar -czf /wine-x86_64.tar.gz .
-          "
+    #         # Build xorgproto (headers only)
+    #         echo 'Building xorgproto...'
+    #         wget -q https://www.x.org/releases/individual/proto/xorgproto-2021.5.tar.bz2
+    #         tar -xf xorgproto-2021.5.tar.bz2
+    #         cd xorgproto-2021.5
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libXau
+    #         echo 'Building libXau...'
+    #         wget -q https://www.x.org/releases/individual/lib/libXau-1.0.11.tar.xz
+    #         tar -xf libXau-1.0.11.tar.xz
+    #         cd libXau-1.0.11
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libXdmcp
+    #         echo 'Building libXdmcp...'
+    #         wget -q https://www.x.org/releases/individual/lib/libXdmcp-1.1.4.tar.xz
+    #         tar -xf libXdmcp-1.1.4.tar.xz
+    #         cd libXdmcp-1.1.4
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build xcb-proto
+    #         echo 'Building xcb-proto...'
+    #         wget -q https://xorg.freedesktop.org/archive/individual/proto/xcb-proto-1.15.2.tar.xz
+    #         tar -xf xcb-proto-1.15.2.tar.xz
+    #         cd xcb-proto-1.15.2
+    #         ./configure --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libxcb
+    #         echo 'Building libxcb...'
+    #         wget -q https://xorg.freedesktop.org/archive/individual/lib/libxcb-1.16.tar.xz
+    #         tar -xf libxcb-1.16.tar.xz
+    #         cd libxcb-1.16
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --disable-build-docs
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libX11
+    #         echo 'Building libX11...'
+    #         wget -q https://www.x.org/releases/individual/lib/libX11-1.8.7.tar.xz
+    #         tar -xf libX11-1.8.7.tar.xz
+    #         cd libX11-1.8.7
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --disable-xlocaledir --enable-malloc0returnsnull
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libXext
+    #         echo 'Building libXext...'
+    #         wget -q https://www.x.org/releases/individual/lib/libXext-1.3.5.tar.xz
+    #         tar -xf libXext-1.3.5.tar.xz
+    #         cd libXext-1.3.5
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libXfixes
+    #         echo 'Building libXfixes...'
+    #         wget -q https://www.x.org/releases/individual/lib/libXfixes-6.0.1.tar.xz
+    #         tar -xf libXfixes-6.0.1.tar.xz
+    #         cd libXfixes-6.0.1
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libXi
+    #         echo 'Building libXi...'
+    #         wget -q https://www.x.org/releases/individual/lib/libXi-1.8.1.tar.xz
+    #         tar -xf libXi-1.8.1.tar.xz
+    #         cd libXi-1.8.1
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libXrender
+    #         echo 'Building libXrender...'
+    #         wget -q https://www.x.org/releases/individual/lib/libXrender-0.9.11.tar.xz
+    #         tar -xf libXrender-0.9.11.tar.xz
+    #         cd libXrender-0.9.11
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libXrandr
+    #         echo 'Building libXrandr...'
+    #         wget -q https://www.x.org/releases/individual/lib/libXrandr-1.5.3.tar.xz
+    #         tar -xf libXrandr-1.5.3.tar.xz
+    #         cd libXrandr-1.5.3
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libXinerama
+    #         echo 'Building libXinerama...'
+    #         wget -q https://www.x.org/releases/individual/lib/libXinerama-1.1.5.tar.xz
+    #         tar -xf libXinerama-1.1.5.tar.xz
+    #         cd libXinerama-1.1.5
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Build libXcursor
+    #         echo 'Building libXcursor...'
+    #         wget -q https://www.x.org/releases/individual/lib/libXcursor-1.2.1.tar.xz
+    #         tar -xf libXcursor-1.2.1.tar.xz
+    #         cd libXcursor-1.2.1
+    #         ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
+    #         make -j$(nproc)
+    #         make install
+    #         cd ..
+            
+    #         # Verify X11 libraries were properly built and installed
+    #         echo 'Checking installed X11 libraries...'
+    #         find $PREFIX/lib -name 'libX*.so' | sort
+    #         find $PREFIX/include/X11 -type f | head -n 5
+    #         find $PREFIX/lib/pkgconfig -name 'x*.pc' | sort
+    #       "
+
+    #   - name: "Build Wine for x86_64"
+    #     run: |
+    #       sudo arch-chroot /mnt/arch bash -c "
+    #         # Setup environment
+    #         export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:\$PATH
+    #         export ANDROID_SDK=28
+    #         export ARCH=x86_64
+    #         export CC=\$ARCH-linux-android\$ANDROID_SDK-clang
+    #         export CXX=\$ARCH-linux-android\$ANDROID_SDK-clang++
+    #         export TOOLCHAIN_VERSION=\$ARCH-linux-android-4.9
+    #         export TOOLCHAIN_TRIPLE=\$ARCH-linux-android
+    #         export PREFIX=$PREFIX-x86_64
+    #         export PKG_CONFIG_PATH=$PREFIX-x86_64/lib/pkgconfig:\$PKG_CONFIG_PATH
+    #         export CPPFLAGS=\"-I$PREFIX-x86_64/include\"
+    #         export LDFLAGS=\"-L$PREFIX-x86_64/lib\"
+            
+    #         cd /wine-build
+            
+    #         # Build wine for x86_64
+    #         mkdir -p build-x86_64
+    #         cd build-x86_64
+    #         echo 'Configuring x86_64 build...'
+    #         ../configure --enable-archs=i386,x86_64 \
+    #           --host=$TOOLCHAIN_TRIPLE \
+    #           --with-wine-tools=/wine-build/wine-tools \
+    #           --prefix=$PREFIX \
+    #           --without-oss \
+    #           --disable-winemenubuilder \
+    #           --disable-win16 \
+    #           --disable-tests \
+    #           --with-x \
+    #           --x-libraries=$PREFIX/lib \
+    #           --x-includes=$PREFIX/include \
+    #           --with-pulse \
+    #           --with-gstreamer \
+    #           --with-opengl \
+    #           --with-gnutls \
+    #           --with-mingw=gcc \
+    #           --with-xinput \
+    #           --with-xinput2 \
+    #           --enable-nls \
+    #           --without-xshm \
+    #           --without-xxf86vm \
+    #           --without-osmesa \
+    #           --without-usb \
+    #           --without-sdl \
+    #           --without-cups \
+    #           --without-netapi \
+    #           --without-pcap \
+    #           --without-gphoto \
+    #           --without-v4l2 \
+    #           --without-pcsclite \
+    #           --without-wayland \
+    #           --without-opencl \
+    #           --without-dbus \
+    #           --without-sane \
+    #           --without-udev \
+    #           --without-capi
+    #         make -j$(nproc)
+    #         cd ..
+            
+    #         # Package the build
+    #         cd build-x86_64
+    #         tar -czf /wine-x86_64.tar.gz .
+    #       "
           
-          # Copy output to workspace
-          sudo cp /mnt/arch/wine-x86_64.tar.gz ./
+    #       # Copy output to workspace
+    #       sudo cp /mnt/arch/wine-x86_64.tar.gz ./
 
       - name: "Upload ARM64 Artifact"
         uses: actions/upload-artifact@v4
         with:
           name: wine-arm64
           path: wine-arm64.tar.gz
-
+  
       - name: "Upload x86_64 Artifact"
         uses: actions/upload-artifact@v4
         with:
