@@ -150,33 +150,6 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf xorgproto-$PKG_VER.tar.xz
                 cd xorgproto-$PKG_VER
-
-                # Apply xorgproto patch inline
-                echo 'diff -uNr xorgproto-2019.1/include/X11/Xos_r.h xorgproto-2019.1.mod/include/X11/Xos_r.h' > xorgproto-patch.patch
-                echo '--- xorgproto-2019.1/include/X11/Xos_r.h	2019-06-20 06:13:03.000000000 +0300' >> xorgproto-patch.patch
-                echo '+++ xorgproto-2019.1.mod/include/X11/Xos_r.h	2019-06-29 23:32:10.617173769 +0300' >> xorgproto-patch.patch
-                echo '@@ -248,7 +248,7 @@' >> xorgproto-patch.patch
-                echo ' ' >> xorgproto-patch.patch
-                echo ' #if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \' >> xorgproto-patch.patch
-                echo '-    defined(__APPLE__) || defined(__DragonFly__)' >> xorgproto-patch.patch
-                echo '+    defined(__APPLE__) || defined(__DragonFly__) || defined(__ANDROID__)' >> xorgproto-patch.patch
-                echo ' static __inline__ void _Xpw_copyPasswd(_Xgetpwparams p)' >> xorgproto-patch.patch
-                echo ' {' >> xorgproto-patch.patch
-                echo '    memcpy(&(p).pws, (p).pwp, sizeof(struct passwd));' >> xorgproto-patch.patch
-                echo '@@ -261,11 +261,7 @@' >> xorgproto-patch.patch
-                echo '    (p).len = strlen((p).pwp->pw_passwd);' >> xorgproto-patch.patch
-                echo '    strcpy((p).pws.pw_passwd,(p).pwp->pw_passwd);' >> xorgproto-patch.patch
-                echo ' ' >> xorgproto-patch.patch
-                echo '-   (p).pws.pw_class = (p).pws.pw_passwd + (p).len + 1;' >> xorgproto-patch.patch
-                echo '-   (p).len = strlen((p).pwp->pw_class);' >> xorgproto-patch.patch
-                echo '-   strcpy((p).pws.pw_class, (p).pwp->pw_class);' >> xorgproto-patch.patch
-                echo '- ' >> xorgproto-patch.patch
-                echo '-   (p).pws.pw_gecos = (p).pws.pw_class + (p).len + 1;' >> xorgproto-patch.patch
-                echo '+   (p).pws.pw_gecos = (p).pws.pw_passwd + (p).len + 1;' >> xorgproto-patch.patch
-                echo '    (p).len = strlen((p).pwp->pw_gecos);' >> xorgproto-patch.patch
-                echo '    strcpy((p).pws.pw_gecos, (p).pwp->pw_gecos);' >> xorgproto-patch.patch
-
-                patch -p1 < xorgproto-patch.patch
                 ./configure --host=$TOOLCHAIN_TRIPLE --prefix=$PREFIX
                 make -j$(nproc)
                 make install
