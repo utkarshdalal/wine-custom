@@ -312,12 +312,12 @@ jobs:
                 echo ' ' >> fix-paths.patch
                 echo ' #ifndef ICONDIR' >> fix-paths.patch
                 echo '-#define ICONDIR "/usr/X11R6/lib/X11/icons"' >> fix-paths.patch
-                echo '+#define ICONDIR "/data/data/com.micewine.emu/files/usr/X11R6/lib/X11/icons"' >> fix-paths.patch
+                echo '+#define ICONDIR "/data/data/com.utkarshdalal.PluviaGoldberg/files/usr/X11R6/lib/X11/icons"' >> fix-paths.patch
                 echo ' #endif' >> fix-paths.patch
                 echo ' ' >> fix-paths.patch
                 echo ' #ifndef XCURSORPATH' >> fix-paths.patch
                 echo '-#define XCURSORPATH "~/.local/share/icons:~/.icons:/usr/share/icons:/usr/share/pixmaps:"ICONDIR' >> fix-paths.patch
-                echo '+#define XCURSORPATH "~/.local/share/icons:~/.icons:/data/data/com.micewine.emu/files/usr/share/icons:/data/data/com.micewine.emu/files/usr/share/pixmaps:"ICONDIR' >> fix-paths.patch
+                echo '+#define XCURSORPATH "~/.local/share/icons:~/.icons:/data/data/com.utkarshdalal.PluviaGoldberg/files/usr/share/icons:/data/data/com.utkarshdalal.PluviaGoldberg/files/usr/share/pixmaps:"ICONDIR' >> fix-paths.patch
                 echo ' #endif' >> fix-paths.patch
                 echo ' ' >> fix-paths.patch
                 echo ' typedef struct XcursorInherit {' >> fix-paths.patch
@@ -396,9 +396,9 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf xkeyboard-config-$PKG_VER.tar.xz
                 cd xkeyboard-config-$PKG_VER
-                ./configure -Dxkb-base=$PREFIX/share/X11/xkb -Dcompat-rules=true -Dxorg-rules-symlinks=false --prefix=$PREFIX
-                make -j$(nproc)
-                make install
+                meson setup build --prefix=$PREFIX -Dxkb-base=$PREFIX/share/X11/xkb -Dcompat-rules=true -Dxorg-rules-symlinks=false
+                ninja -C build -j$(nproc)
+                ninja -C build -j$(nproc) install
                 cd ..
                 
                 # Verify X11 libraries were properly built and installed
