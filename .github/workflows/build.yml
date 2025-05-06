@@ -210,6 +210,22 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf libX11-$PKG_VER.tar.xz
                 cd libX11-$PKG_VER
+
+                # Apply the pthread fix patch
+                echo '--- 13-libX11/configure	2024-03-02 19:00:43.598785000 -0300' > fix-pthread.patch
+                echo '+++ 13-libX11.mod/configure	2024-03-02 19:01:08.520521000 -0300' >> fix-pthread.patch
+                echo '@@ -22175,7 +22175,7 @@' >> fix-pthread.patch
+                echo ' if test x$xthreads = xyes ; then' >> fix-pthread.patch
+                echo '     case $host_os in' >> fix-pthread.patch
+                echo '     linux*|gnu*|k*bsd*-gnu)' >> fix-pthread.patch
+                echo '-        XTHREADLIB=-lpthread ;;' >> fix-pthread.patch
+                echo '+        XTHREADLIB=-pthread ;;' >> fix-pthread.patch
+                echo '     netbsd*)' >> fix-pthread.patch
+                echo ' 	XTHREAD_CFLAGS="-D_POSIX_THREAD_SAFE_FUNCTIONS"' >> fix-pthread.patch
+                echo ' 	XTHREADLIB="-lpthread" ;;' >> fix-pthread.patch
+
+                patch -p1 < fix-pthread.patch
+
                 ./configure --host=$TOOLCHAIN_TRIPLE host_alias=$TOOLCHAIN_TRIPLE --prefix=$PREFIX --enable-malloc0returnsnull
                 make -j$(nproc)
                 make install
