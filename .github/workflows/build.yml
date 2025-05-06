@@ -95,7 +95,14 @@ jobs:
                 export CXX=$ARCH-linux-android$ANDROID_SDK-clang++
                 export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
                 export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
-                
+                export LD="$CC"
+
+                # Point Autotools at the correct archiver / symbol-table tools
+                export AR=$ARCH-linux-android-ar
+                export RANLIB=$ARCH-linux-android-ranlib
+                export STRIP=$ARCH-linux-android-strip
+                export NM=$ARCH-linux-android-nm
+                                
                 # Set prefix and prepare pkg-config directories
                 mkdir -p "$PREFIX_FOLDER/lib/pkgconfig" "$PREFIX_FOLDER/share/pkgconfig"
                 export PKG_CONFIG_PATH="$PREFIX_FOLDER/share/pkgconfig:$PREFIX_FOLDER/lib/pkgconfig"
