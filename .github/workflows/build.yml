@@ -91,14 +91,8 @@ jobs:
                 export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:$PATH
                 export ANDROID_SDK=29
                 export ARCH=aarch64
-                export NDK_BIN=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin
-                # call the real clang driver and specify the target triple yourself
-                export CC="$NDK_BIN/clang \
-                --target=$ARCH-linux-android$ANDROID_SDK \
-                -isysroot $NDK_BIN/../sysroot"
-                export CXX="$NDK_BIN/clang++ \
-                --target=$ARCH-linux-android$ANDROID_SDK \
-                -isysroot $NDK_BIN/../sysroot"
+                export CC=$ARCH-linux-android$ANDROID_SDK-clang
+                export CXX=$ARCH-linux-android$ANDROID_SDK-clang++
                 export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
                 export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
                 
@@ -111,7 +105,6 @@ jobs:
                 # Check compiler and linker details
                 echo "Compiler details:"
                 $CC --version
-                $CC -### -c -o /dev/null /dev/null  # show driver’s link phase
 
                 # Verify compiler works
                 echo "Testing compiler..."
