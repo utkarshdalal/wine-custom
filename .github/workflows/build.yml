@@ -82,7 +82,7 @@ jobs:
 
       - name: "Build X11 Dependencies for ARM64"
         run: |
-            sudo arch-chroot /mnt/arch bash -c << 'EOF'
+            sudo arch-chroot /mnt/arch bash << 'EOF'
                 # Setup build environment for X11 dependencies
                 export PATH=/mnt/arch/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/mnt/arch/cache/mingw/bin:$PATH
                 export ANDROID_SDK=29
@@ -339,7 +339,7 @@ jobs:
 
       - name: "Build Wine for ARM64"
         run: |
-            sudo arch-chroot /mnt/arch bash -c << 'EOF'
+            sudo arch-chroot /mnt/arch bash << 'EOF'
                 # Setup environment
                 export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:\$PKG_CONFIG_PATH
                 export CPPFLAGS=\"-I$PREFIX/include\"
