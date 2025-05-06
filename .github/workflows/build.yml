@@ -392,20 +392,19 @@ jobs:
                 # Build xkeyboard-config
                 # Prepare Meson cross-file for ARM64
                 mkdir -p build_config
-                cat > build_config/meson-cross-file-aarch64 << 'MESON_CROSS_EOF'
-                [binaries]
-                pkg-config = '/usr/bin/pkg-config'
-                cmake = '/usr/bin/cmake'
-
-                [host_machine]
-                system = 'linux'
-                cpu_family = 'aarch64'
-                cpu = 'aarch64'
-                endian = 'little'
-
-                [properties]
-                skip_sanity_check = true
-                MESON_CROSS_EOF
+                # Generate Meson cross-file via echo to avoid heredoc indentation issues
+                echo '[binaries]' > build_config/meson-cross-file-aarch64
+                echo "pkg-config = '/usr/bin/pkg-config'" >> build_config/meson-cross-file-aarch64
+                echo "cmake = '/usr/bin/cmake'" >> build_config/meson-cross-file-aarch64
+                echo '' >> build_config/meson-cross-file-aarch64
+                echo '[host_machine]' >> build_config/meson-cross-file-aarch64
+                echo "system = 'linux'" >> build_config/meson-cross-file-aarch64
+                echo "cpu_family = 'aarch64'" >> build_config/meson-cross-file-aarch64
+                echo "cpu = 'aarch64'" >> build_config/meson-cross-file-aarch64
+                echo "endian = 'little'" >> build_config/meson-cross-file-aarch64
+                echo '' >> build_config/meson-cross-file-aarch64
+                echo '[properties]' >> build_config/meson-cross-file-aarch64
+                echo 'skip_sanity_check = true' >> build_config/meson-cross-file-aarch64
                 echo 'Building xkeyboard-config...'
                 PKG_VER=2.41
                 SRC_URL=https://xorg.freedesktop.org/archive/individual/data/xkeyboard-config/xkeyboard-config-$PKG_VER.tar.xz
