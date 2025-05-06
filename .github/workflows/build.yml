@@ -102,6 +102,22 @@ jobs:
                 export PKG_CONFIG_LIBDIR="$PREFIX_FOLDER/share/pkgconfig:$PREFIX_FOLDER/lib/pkgconfig"
                 export PKG_CONFIG="/usr/bin/pkg-config"
 
+                # Check compiler and linker details
+                echo "Compiler details:"
+                $CC --version
+                
+                # Find out what linker is being used
+                $CC -Wl,--version
+                
+                # Explicitly set LD to the AArch64 linker if available
+                if [ -f "/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ld" ]; then
+                    export LD="/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ld"
+                    echo "Using explicit LD: $LD"
+                elif [ -f "/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android$ANDROID_SDK-ld" ]; then
+                    export LD="/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android$ANDROID_SDK-ld"
+                    echo "Using explicit LD: $LD"
+                fi
+
                 # Verify compiler works
                 echo "Testing compiler..."
                 echo "int main() { return 0; }" > test.c
