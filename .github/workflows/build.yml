@@ -14,20 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: "Install ArchLinux"
+      - name: Download Arch bootstrap tarball if needed
         run: |
-          sudo apt update
-          sudo apt install -y arch-install-scripts wget
-          sudo mkdir -p /mnt/
           if [ ! -f archlinux-bootstrap-x86_64.tar.zst ]; then
             wget https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst
           else
             echo "→ using cached bootstrap"
           fi
-          sudo tar -xf archlinux-bootstrap-x86_64.tar.zst
-          sudo mv root.x86_64 /mnt/arch
-
-          sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm base base-devel git cmake meson ninja bison flex python-pip wget python-mako python-pyyaml unzip p7zip glslang python-docutils xmlto fop libxslt libx11 libxi libxext libxinerama libxrandr libxrender libxfixes libxcursor xorgproto"
 
       - name: Cache Arch bootstrap tarball
         uses: actions/cache@v3
@@ -36,6 +29,16 @@ jobs:
           key: ${{ runner.os }}-arch-bootstrap-latest
           restore-keys: |
             ${{ runner.os }}-arch-bootstrap-
+
+      - name: "Install ArchLinux"
+        run: |
+          sudo apt update
+          sudo apt install -y arch-install-scripts wget
+          sudo mkdir -p /mnt/
+          sudo tar -xf archlinux-bootstrap-x86_64.tar.zst
+          sudo mv root.x86_64 /mnt/arch
+
+          sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm base base-devel git cmake meson ninja bison flex python-pip wget python-mako python-pyyaml unzip p7zip glslang python-docutils xmlto fop libxslt libx11 libxi libxext libxinerama libxrandr libxrender libxfixes libxcursor xorgproto"
 
       - name: "Setup Basic Android Runtime Environment"
         run: |
@@ -590,8 +593,8 @@ jobs:
                 SRC_URL=https://github.com/facebook/zstd/archive/v$PKG_VER.tar.gz
                 wget -q $SRC_URL
                 tar -xf v$PKG_VER.tar.gz
-                cd zstd-$PKG_VER/build/meson
-                meson setup build --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Ddefault_library=both -Dbin_programs=true -Dbin_tests=false -Dbin_contrib=true -Dzlib=enabled -Dlzma=disabled -Dlz4=disabled ..
+                cd zstd-$PKG_VER
+                meson setup build build/meson --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Ddefault_library=both -Dbin_programs=true -Dbin_tests=false -Dbin_contrib=true -Dzlib=enabled -Dlzma=disabled -Dlz4=disabled ..
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
                 cd ..
