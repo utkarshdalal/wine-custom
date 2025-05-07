@@ -556,8 +556,8 @@ jobs:
                 echo 'Building Vulkan-Headers...'
                 PKG_VER=1.4.304
                 SRC_URL=https://github.com/KhronosGroup/Vulkan-Headers/archive/v$PKG_VER.tar.gz
-                wget -q -O $SRC_URL
-                tar -xf v$PKG_VER.tar.gz
+                wget -q -O vulkan-headers.tar.gz $SRC_URL
+                tar -xf vulkan-headers.tar.gz
                 echo "After extracting Vulkan-Volk $PKG_VER:"
                 pwd
                 ls -la
@@ -572,8 +572,8 @@ jobs:
                 echo 'Building Vulkan-Loader...'
                 PKG_VER=1.4.304
                 SRC_URL=https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/v$PKG_VER.tar.gz
-                wget -q -O $SRC_URL
-                tar -xf v$PKG_VER.tar.gz
+                wget -q -O vulkan-loader.tar.gz $SRC_URL
+                tar -xf vulkan-loader.tar.gz
                 echo "After extracting Vulkan-Volk $PKG_VER:"
                 pwd
                 ls -la
@@ -590,8 +590,8 @@ jobs:
                 echo 'Building Vulkan-Volk...'
                 PKG_VER=1.4.304
                 SRC_URL=https://github.com/zeux/volk/archive/refs/tags/$PKG_VER.tar.gz
-                wget -q -O $SRC_URL
-                tar -xf $PKG_VER.tar.gz
+                wget -q -O vulkan-volk.tar.gz $SRC_URL
+                tar -xf vulkan-volk.tar.gz
                 echo "After extracting Vulkan-Volk $PKG_VER:"
                 pwd
                 ls -la
@@ -606,8 +606,8 @@ jobs:
                 echo 'Building Vulkan-Tools...'
                 PKG_VER=1.4.304
                 SRC_URL=https://github.com/KhronosGroup/Vulkan-Tools/archive/refs/tags/v$PKG_VER.tar.gz
-                wget -q -O $SRC_URL
-                tar -xf v$PKG_VER.tar.gz
+                wget -q -O vulkan-tools.tar.gz $SRC_URL
+                tar -xf vulkan-tools.tar.gz
                 echo "After extracting Vulkan-Tools $PKG_VER:"
                 pwd
                 ls -la
@@ -625,8 +625,8 @@ jobs:
                 echo 'Building libglvnd...'
                 PKG_VER=1.7.0
                 SRC_URL=https://github.com/NVIDIA/libglvnd/archive/refs/tags/v$PKG_VER.tar.gz
-                wget -q -O $SRC_URL
-                tar -xf v$PKG_VER.tar.gz
+                wget -q -O libglvnd.tar.gz $SRC_URL
+                tar -xf libglvnd.tar.gz
                 echo "After extracting libglvnd $PKG_VER:"
                 pwd
                 ls -la
@@ -642,8 +642,8 @@ jobs:
                 echo 'Building zstd...'
                 PKG_VER=1.5.6
                 SRC_URL=https://github.com/facebook/zstd/archive/v$PKG_VER.tar.gz
-                wget -q -O $SRC_URL
-                tar -xf v$PKG_VER.tar.gz
+                wget -q -O zstd.tar.gz $SRC_URL
+                tar -xf zstd.tar.gz
                 echo "After extracting zstd $PKG_VER:"
                 pwd
                 ls -la
@@ -674,11 +674,11 @@ jobs:
                 echo 'Building mesa-demos...'
                 PKG_VER=9.0.0
                 SRC_URL=https://mesa.freedesktop.org/archive/demos/mesa-demos-$PKG_VER.tar.xz
-                wget -q -O $SRC_URL
+                wget -q -O mesa-demos.tar.xz $SRC_URL
                 echo "After extracting mesa-demos $PKG_VER:"
                 pwd
                 ls -la
-                tar -xf mesa-demos-$PKG_VER.tar.xz
+                tar -xf mesa-demos.tar.xz
                 cd mesa-demos-$PKG_VER
                 # Apply mesa-demos patches
                 patch -p1 < /wine-custom/packages/mesa-demos/0001-fix-KHR-define.patch
