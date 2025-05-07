@@ -39,6 +39,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: "Copy Repository to Chroot"
+        run: |
+          sudo cp -rf $PWD /mnt/arch/wine-custom
+
       - name: "Setup NDK for Cross-Compilation"
         run: |
           # Download NDK and extract it properly
