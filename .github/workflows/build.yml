@@ -631,7 +631,7 @@ jobs:
                 tar -xf v$PKG_VER.tar.gz
                 cd zstd-$PKG_VER
                 mkdir build_dir && cd build_dir
-                meson setup --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Ddefault_library=both -Dbin_programs=true -Dbin_tests=false -Dbin_contrib=true -Dzlib=enabled -Dlzma=disabled -Dlz4=disabled ..
+                meson setup ../build/meson --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Ddefault_library=both -Dbin_programs=true -Dbin_tests=false -Dbin_contrib=true -Dzlib=enabled -Dlzma=disabled -Dlz4=disabled ..
                 ninja -j$(nproc)
                 ninja -j$(nproc) install
                 cd ..
