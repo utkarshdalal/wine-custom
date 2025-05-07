@@ -139,8 +139,8 @@ jobs:
                 wget -q $SRC_URL
                 tar -xf v$PKG_VER.tar.gz
                 cd Vulkan-Loader-$PKG_VER
-                patch -p1 < ../packages/Vulkan-Loader/0001-fix-hardcoded-pathes.patch
-                patch -p1 < ../packages/Vulkan-Loader/0002-properly-enable-extensions.patch
+                patch -p1 < ../../packages/Vulkan-Loader/0001-fix-hardcoded-pathes.patch
+                patch -p1 < ../../packages/Vulkan-Loader/0002-properly-enable-extensions.patch
                 mkdir build && cd build
                 cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DCMAKE_SYSTEM_NAME=Linux -DENABLE_WERROR=OFF -DVULKAN_HEADERS_INSTALL_DIR=$PREFIX -DUSE_GAS=OFF ..
                 make -j $(nproc)
@@ -168,8 +168,8 @@ jobs:
                 tar -xf v$PKG_VER.tar.gz
                 cd Vulkan-Tools-$PKG_VER
                 # Apply Vulkan-Tools patches
-                patch -p1 < ../packages/Vulkan-Tools/01-no-android.patch
-                patch -p1 < ../packages/Vulkan-Tools/02-do-not-search-KHR_display-automatically.patch
+                patch -p1 < ../../packages/Vulkan-Tools/01-no-android.patch
+                patch -p1 < ../../packages/Vulkan-Tools/02-do-not-search-KHR_display-automatically.patch
                 mkdir build && cd build
                 cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_SYSTEM_NAME=Linux -DBUILD_CUBE=ON -DBUILD_ICD=OFF -DBUILD_WSI_WAYLAND_SUPPORT=OFF -DBUILD_WSI_XCB_SUPPORT=ON -DBUILD_WSI_XLIB_SUPPORT=ON -DVULKAN_HEADERS_INSTALL_DIR=$PREFIX ..
                 make -j$(nproc)
@@ -184,7 +184,7 @@ jobs:
                 tar -xf v$PKG_VER.tar.gz
                 cd libglvnd-$PKG_VER
                 # Apply libglvnd patch
-                patch -p1 < ../packages/libglvnd/egl-not-android.diff
+                patch -p1 < ../../packages/libglvnd/egl-not-android.diff
                 meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dtls=false ..
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
@@ -196,7 +196,7 @@ jobs:
                 cd mesa-vulkan-wrapper
                 git checkout e65c7eb6ee2f9903c3256f2677beb1d98464103f
                 # Apply Mesa Vulkan Wrapper patches
-                for p in ../packages/mesa-vulkan-wrapper/*.patch; do patch -p1 < "$p"; done
+                for p in ../../packages/mesa-vulkan-wrapper/*.patch; do patch -p1 < "$p"; done
                 mkdir build && cd build
                 meson setup --cross-file=../../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dgallium-drivers= -Dvulkan-drivers=wrapper -Dglvnd=disabled -Dplatforms=x11 -Dxmlconfig=enabled -Dllvm=disabled -Dopengl=false -Degl=disabled -Dzstd=enabled ..
                 ninja -C build -j$(nproc)
@@ -211,8 +211,8 @@ jobs:
                 tar -xf mesa-demos-$PKG_VER.tar.xz
                 cd mesa-demos-$PKG_VER
                 # Apply mesa-demos patches
-                patch -p1 < ../packages/mesa-demos/0001-fix-KHR-define.patch
-                patch -p1 < ../packages/mesa-demos/src-tests-texdown.c.patch
+                patch -p1 < ../../packages/mesa-demos/0001-fix-KHR-define.patch
+                patch -p1 < ../../packages/mesa-demos/src-tests-texdown.c.patch
                 meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dlibdrm=disabled -Dvulkan=disabled -Dwayland=disabled -Dwith-system-data-files=true -Dglut=disabled -Degl=disabled ..
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
