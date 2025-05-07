@@ -64,22 +64,41 @@ jobs:
         run: |
           sudo cp -rf $PWD /mnt/arch/wine-custom
 
+      - name: Cache Android NDK
+        uses: actions/cache@v3
+        with:
+          path: /mnt/arch/cache/android-ndk
+          key: ${{ runner.os }}-android-ndk-r26b
+
+      - name: Cache MinGW
+        uses: actions/cache@v3
+        with:
+          path: /mnt/arch/cache/mingw
+          key: ${{ runner.os }}-mingw
+
       - name: "Setup NDK for Cross-Compilation"
         run: |
           # Download NDK and extract it properly
-          wget -q https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
           sudo mkdir -p /mnt/arch/cache
-          
-          # Use unzip with -K flag to properly handle symbolic links
-          sudo unzip -q -K android-ndk-r26b-linux.zip -d /mnt/arch/cache/
-          sudo mv /mnt/arch/cache/android-ndk-r26b /mnt/arch/cache/android-ndk
+
+          if [ ! -d /mnt/arch/cache/android-ndk ]; then
+            wget -q https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
+            sudo unzip -q -K android-ndk-r26b-linux.zip -d /mnt/arch/cache/
+            sudo mv /mnt/arch/cache/android-ndk-r26b /mnt/arch/cache/android-ndk
+          else
+            echo "→ using cached NDK"
+          fi
           
           # Download and extract MinGW
-          wget -q http://techer.pascal.free.fr/Red-Rose_MinGW-w64-Toolchain/Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz
           sudo mkdir -p /mnt/arch/cache/mingw-temp
           sudo mkdir -p /mnt/arch/cache/mingw
-          sudo tar -xf Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz -C /mnt/arch/cache/mingw-temp
-          sudo mv /mnt/arch/cache/mingw-temp /mnt/arch/cache/mingw
+          if [ ! -d /mnt/arch/cache/mingw ]; then
+            wget -q http://techer.pascal.free.fr/Red-Rose_MinGW-w64-Toolchain/Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz
+            sudo tar -xf Red-Rose-MinGW-w64-Posix-Urct-v12.0.0.r458.g03d8a40f5-Gcc-11.5.0.tar.xz -C /mnt/arch/cache/mingw-temp
+            sudo mv /mnt/arch/cache/mingw-temp /mnt/arch/cache/mingw
+          else
+            echo "→ using cached MinGW"
+          fi
           
           # Setup permissions
           sudo chown -R $(whoami):$(whoami) /mnt/arch/cache
@@ -105,7 +124,16 @@ jobs:
           sudo chown -R $(whoami):$(whoami) $PREFIX
           sudo chmod -R 755 $PREFIX
 
+      - name: Cache X11 Dependencies
+        id: x11cache
+        uses: actions/cache@v3
+        with:
+          path: /mnt/arch/prefix
+          key: ${{ runner.os }}-x11-deps-${{ hashFiles('.github/workflows/build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-x11-deps-
       - name: "Build Dependencies for ARM64"
+        if: steps.x11cache.outputs.cache-hit != 'true'
         run: |
             sudo arch-chroot /mnt/arch bash << 'EOF'
                 #!/bin/bash
@@ -440,8 +468,54 @@ jobs:
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
                 cd ..
+                
+                # Verify X11 libraries were properly built and installed
+                echo 'Checking installed X11 libraries...'
+                find $PREFIX/lib -name 'libX*.so' | sort
+                find $PREFIX/include/X11 -type f | head -n 5
+                find $PREFIX/lib/pkgconfig -name 'x*.pc' | sort
+            EOF
 
-                # Build Vulkan-Headers
+      - name: "Build OpenGL Dependencies for ARM64"
+        run: |
+            sudo arch-chroot /mnt/arch bash << 'EOF'
+                #!/bin/bash
+                set -e  # Exit on any error
+                set -x  # Print commands as they're executed
+                # Setup build environment for OpenGL
+                export PREFIX=/prefix
+                export PATH=/cache/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:/cache/mingw/bin:$PATH
+                export ANDROID_SDK=29
+                export ARCH=aarch64
+                export CC=$ARCH-linux-android$ANDROID_SDK-clang
+                export CXX=$ARCH-linux-android$ANDROID_SDK-clang++
+                export TOOLCHAIN_VERSION="$ARCH-linux-android-4.9"
+                export TOOLCHAIN_TRIPLE="$ARCH-linux-android"
+                
+                # Set prefix and prepare pkg-config directories
+                mkdir -p "$PREFIX/lib/pkgconfig" "$PREFIX/share/pkgconfig"
+                export PKG_CONFIG_PATH="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
+                export PKG_CONFIG_LIBDIR="$PREFIX/share/pkgconfig:$PREFIX/lib/pkgconfig"
+                export PKG_CONFIG="/usr/bin/pkg-config"
+
+                # Check compiler and linker details
+                echo "Compiler details:"
+                $CC --version
+                
+                # Find out what linker is being used
+                $CC -Wl,--version
+
+                # Verify compiler works
+                echo "Testing compiler..."
+                echo "int main() { return 0; }" > test.c
+                $CC -o test test.c || { echo "Compiler test failed"; exit 1; }
+                ./test && echo "Compiler test successful"
+                
+                # Create a temporary build directory
+                mkdir -p /opengl-build
+                cd /opengl-build
+
+                                # Build Vulkan-Headers
                 echo 'Building Vulkan-Headers...'
                 PKG_VER=1.4.304
                 SRC_URL=https://github.com/KhronosGroup/Vulkan-Headers/archive/v$PKG_VER.tar.gz
@@ -539,12 +613,6 @@ jobs:
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
                 cd ..
-                
-                # Verify X11 libraries were properly built and installed
-                echo 'Checking installed X11 libraries...'
-                find $PREFIX/lib -name 'libX*.so' | sort
-                find $PREFIX/include/X11 -type f | head -n 5
-                find $PREFIX/lib/pkgconfig -name 'x*.pc' | sort
             EOF
 
       - name: "Build Wine for ARM64"
