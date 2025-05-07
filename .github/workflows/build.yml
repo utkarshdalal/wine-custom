@@ -563,7 +563,7 @@ jobs:
                 cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release ..
                 make -j $(nproc)
                 make install
-                cd ..
+                cd /opengl-build
 
                 # Build Vulkan-Loader
                 echo 'Building Vulkan-Loader...'
@@ -578,7 +578,7 @@ jobs:
                 cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DCMAKE_SYSTEM_NAME=Linux -DENABLE_WERROR=OFF -DVULKAN_HEADERS_INSTALL_DIR=$PREFIX -DUSE_GAS=OFF ..
                 make -j $(nproc)
                 make install
-                cd ..
+                cd /opengl-build
 
                 # Build Vulkan-Volk
                 echo 'Building Vulkan-Volk...'
@@ -591,7 +591,7 @@ jobs:
                 cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_BUILD_TYPE=Release -DVOLK_INSTALL=ON ..
                 make -j$(nproc)
                 make install
-                cd ../../
+                cd /opengl-build
 
                 # Build Vulkan-Tools
                 echo 'Building Vulkan-Tools...'
@@ -607,7 +607,7 @@ jobs:
                 cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib -DCMAKE_SYSTEM_NAME=Linux -DBUILD_CUBE=ON -DBUILD_ICD=OFF -DBUILD_WSI_WAYLAND_SUPPORT=OFF -DBUILD_WSI_XCB_SUPPORT=ON -DBUILD_WSI_XLIB_SUPPORT=ON -DVULKAN_HEADERS_INSTALL_DIR=$PREFIX ..
                 make -j$(nproc)
                 make install
-                cd ../../
+                cd /opengl-build
 
                 # Build libglvnd
                 echo 'Building libglvnd...'
@@ -621,7 +621,7 @@ jobs:
                 meson setup build --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dtls=false ..
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
-                cd ..
+                cd /opengl-build
 
                 # Build zstd
                 echo 'Building zstd...'
@@ -634,7 +634,7 @@ jobs:
                 meson setup ../build/meson --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Ddefault_library=both -Dbin_programs=true -Dbin_tests=false -Dbin_contrib=true -Dzlib=enabled -Dlzma=disabled -Dlz4=disabled ..
                 ninja -j$(nproc)
                 ninja -j$(nproc) install
-                cd ..
+                cd /opengl-build
 
                 # Build Mesa Vulkan Wrapper
                 echo 'Building Mesa Vulkan Wrapper...'
@@ -647,7 +647,7 @@ jobs:
                 meson setup --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dgallium-drivers= -Dvulkan-drivers=wrapper -Dglvnd=disabled -Dplatforms=x11 -Dxmlconfig=enabled -Dllvm=disabled -Dopengl=false -Degl=disabled -Dzstd=enabled ..
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
-                cd ../../
+                cd /opengl-build
 
                 # Build mesa-demos
                 echo 'Building mesa-demos...'
@@ -662,7 +662,7 @@ jobs:
                 meson setup build --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dlibdrm=disabled -Dvulkan=disabled -Dwayland=disabled -Dwith-system-data-files=true -Dglut=disabled -Degl=disabled ..
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
-                cd ..
+                cd /opengl-build
             EOF
 
       - name: "Build Wine for ARM64"
