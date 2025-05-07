@@ -503,7 +503,7 @@ jobs:
                 mkdir -p /opengl-build
                 cd /opengl-build
 
-                                # Build Vulkan-Headers
+                # Build Vulkan-Headers
                 echo 'Building Vulkan-Headers...'
                 PKG_VER=1.4.304
                 SRC_URL=https://github.com/KhronosGroup/Vulkan-Headers/archive/v$PKG_VER.tar.gz
@@ -570,6 +570,18 @@ jobs:
                 # Apply libglvnd patch
                 CFLAGS="-I$PREFIX/include" patch -p1 < /wine-custom/packages/libglvnd/egl-not-android.diff
                 meson setup build --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dtls=false ..
+                ninja -C build -j$(nproc)
+                ninja -C build -j$(nproc) install
+                cd ..
+
+                # Build zstd
+                echo 'Building zstd...'
+                PKG_VER=1.5.6
+                SRC_URL=https://github.com/facebook/zstd/archive/v$PKG_VER.tar.gz
+                wget -q $SRC_URL
+                tar -xf v$PKG_VER.tar.gz
+                cd zstd-$PKG_VER
+                meson setup build --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Ddefault_library=both -Dbin_programs=true -Dbin_tests=false -Dbin_contrib=true -Dzlib=enabled -Dlzma=disabled -Dlz4=disabled ..
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
                 cd ..
