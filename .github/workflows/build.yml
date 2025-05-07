@@ -13,23 +13,44 @@ jobs:
       PREFIX: /mnt/arch/prefix
     runs-on: ubuntu-latest
     steps:
+      - name: Cache Arch bootstrap tarball
+        uses: actions/cache@v3
+        with:
+          path: archlinux-bootstrap-x86_64.tar.zst
+          key: ${{ runner.os }}-arch-bootstrap-latest
+          restore-keys: |
+            ${{ runner.os }}-arch-bootstrap-
+
       - name: "Install ArchLinux"
         run: |
           sudo apt update
           sudo apt install -y arch-install-scripts wget
           sudo mkdir -p /mnt/
-
-          wget https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst
-
+          if [ ! -f archlinux-bootstrap-x86_64.tar.zst ]; then
+            wget https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst
+          else
+            echo "→ using cached bootstrap"
+          fi
           sudo tar -xf archlinux-bootstrap-x86_64.tar.zst
           sudo rm -f archlinux-bootstrap-x86_64.tar.zst
           sudo mv root.x86_64 /mnt/arch
 
           sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm base base-devel git cmake meson ninja bison flex python-pip wget python-mako python-pyyaml unzip p7zip glslang python-docutils xmlto fop libxslt libx11 libxi libxext libxinerama libxrandr libxrender libxfixes libxcursor xorgproto"
 
+      - name: Cache termux-docker
+        uses: actions/cache@v3
+        with:
+          path: termux-docker
+          key: ${{ runner.os }}-termux-docker
+
+      
       - name: "Setup Basic Android Runtime Environment"
         run: |
-          git clone https://github.com/termux/termux-docker.git
+          if [ ! -d termux-docker ]; then
+            git clone https://github.com/termux/termux-docker.git
+          else
+            echo "→ using cached termux-docker"
+          fi
           sudo cp -rf termux-docker/system/x86 /mnt/arch/system
           sudo chown -R $(whoami):$(whoami) /mnt/arch/system
           sudo chmod 755 -R /mnt/arch/system
@@ -420,7 +441,7 @@ jobs:
                 ninja -C build -j$(nproc) install
                 cd ..
 
-                                # Build Vulkan-Headers
+                # Build Vulkan-Headers
                 echo 'Building Vulkan-Headers...'
                 PKG_VER=1.4.304
                 SRC_URL=https://github.com/KhronosGroup/Vulkan-Headers/archive/v$PKG_VER.tar.gz
@@ -485,7 +506,7 @@ jobs:
                 tar -xf v$PKG_VER.tar.gz
                 cd libglvnd-$PKG_VER
                 # Apply libglvnd patch
-                patch -p1 < /wine-custom/packages/libglvnd/egl-not-android.diff
+                CFLAGS="-I$PREFIX/include" patch -p1 < /wine-custom/packages/libglvnd/egl-not-android.diff
                 meson setup build --cross-file=../build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dtls=false ..
                 ninja -C build -j$(nproc)
                 ninja -C build -j$(nproc) install
