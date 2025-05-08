@@ -46,12 +46,12 @@ jobs:
             gst-plugins-base gnutls xmlto fop libxslt libx11 \
             libxi libxext libxinerama libxrandr libxrender \
             libxfixes libxcursor xorgproto"
-          sudo arch-chroot /mnt/arch pacman -S --noconfirm \
-            base-devel git clang gcc-multilib pkgconf autoconf automake \
-            xorgproto libx11 libxext libxi libxrandr mesa \
-            pulseaudio gstreamer gst-plugins-base gnutls \
-            lib32-glibc lib32-libx11 lib32-libxext lib32-libxi lib32-libxrandr \
-            lib32-mesa lib32-libpulse lib32-gnutls lib32-gstreamer lib32-gst-plugins-base-libs
+        #   sudo arch-chroot /mnt/arch pacman -S --noconfirm \
+        #     base-devel git clang gcc-multilib pkgconf autoconf automake \
+        #     xorgproto libx11 libxext libxi libxrandr mesa \
+        #     pulseaudio gstreamer gst-plugins-base gnutls \
+        #     lib32-glibc lib32-libx11 lib32-libxext lib32-libxi lib32-libxrandr \
+        #     lib32-mesa lib32-libpulse lib32-gnutls lib32-gstreamer lib32-gst-plugins-base-libs
 
 
       - name: Save Arch bootstrap tarball to cache
@@ -109,7 +109,10 @@ jobs:
 
       - name: merge new wine into imagefs
         run: |
+            rm -rf imagefs/opt/wine
             tar -xf wine-opt.txz -C imagefs          # overwrites workroot/opt/wine
+            # replace old hardcoded winlator paths
+            grep -rIl --exclude='*.so' '/data/data/com.winlator/files/imagefs' imagefs | xargs sed -i 's|/data/data/com.winlator/files/imagefs|/data/data/com.utkarshdalal.PluviaGoldberg/files/imagefs|g'
             tar -C imagefs -caf imagefs-new.txz .
       
       - uses: actions/upload-artifact@v4
