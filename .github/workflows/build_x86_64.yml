@@ -83,12 +83,12 @@ jobs:
                 set -e  # Exit on any error
                 set -x  # Print commands as they're executed
                 
-                pacman -Sy --noconfirm autoconf automake pkgconf clang gcc-multilib mingw-w64-gcc mingw-w64-crt
+                pacman -Sy --noconfirm autoconf automake pkgconf clang gcc-multilib mingw-w64-gcc mingw-w64-crt mingw-w64-binutils mingw-w64-headers
                 cd /wine-custom
                 
                 # Build wine for glibc x86_64
                 echo 'Configuring ARM64 build...'
-                ./configure --enable-archs=i386,x86_64 \
+                ./configure CFLAGS=-std=gnu89 --enable-archs=i386,x86_64 \
                     --prefix=/opt/wine \
                     --with-x --with-opengl --with-pulse --with-gstreamer --with-gnutls \
                     --with-xinput --with-xinput2 \
