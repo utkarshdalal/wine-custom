@@ -36,10 +36,11 @@ jobs:
           sudo tar -xf archlinux-bootstrap-x86_64.tar.zst
           sudo mv root.x86_64 /mnt/arch
 
-          sudo arch-chroot /mnt/arch bash -c '
-            sed -i "/^\[multilib\]/,+1 s/^#//" /etc/pacman.conf
-            sed -i "s|^#Server|Server|" /etc/pacman.d/mirrorlist
-            pacman -Sy'
+          sudo arch-chroot /mnt/arch bash -c "
+            sed -i '/^\[multilib\]/,+1 s/^#//' /etc/pacman.conf && \
+            sed -i 's|^#Server|Server|' /etc/pacman.d/mirrorlist && \
+            pacman -Sy
+          "
           sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm \
             base base-devel git mesa pulseaudio gstreamer \
             gst-plugins-base gnutls xmlto fop libxslt libx11 \
@@ -50,7 +51,7 @@ jobs:
             xorgproto libx11 libxext libxi libxrandr mesa \
             pulseaudio gstreamer gst-plugins-base gnutls \
             lib32-glibc lib32-libx11 lib32-libxext lib32-libxi lib32-libxrandr \
-            lib32-mesa lib32-pulseaudio lib32-gnutls lib32-gstreamer lib32-gst-plugins-base
+            lib32-mesa lib32-libpulse lib32-gnutls lib32-gstreamer lib32-gst-plugins-base-libs
 
 
       - name: Save Arch bootstrap tarball to cache
