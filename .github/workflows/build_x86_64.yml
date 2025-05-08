@@ -87,6 +87,7 @@ jobs:
                 cd /wine-custom
 
                 sed -i 's/BOOL[[:space:]]*bool;/BOOL bval;/' programs/winhlp32/macro.h
+                sed -i 's/\<bool\>/bval/g'          dlls/jscript/bool.c
                 
                 # Build wine for glibc x86_64
                 echo 'Configuring ARM64 build...'
