@@ -83,7 +83,7 @@ jobs:
                 set -e  # Exit on any error
                 set -x  # Print commands as they're executed
                 
-                pacman -Sy --noconfirm autoconf automake pkgconf clang gcc-multilib
+                pacman -Sy --noconfirm autoconf automake pkgconf clang gcc-multilib mingw-w64-i686-gcc mingw-w64-x86_64-gcc mingw-w64-tools
                 cd /wine-custom
                 
                 # Build wine for glibc x86_64
