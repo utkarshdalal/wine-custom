@@ -1,5 +1,0 @@
---- /dev/null
-+++ b/.rat-copy-meson.sh
-@@
-+#!/bin/sh
-+cp -r build/meson/* .

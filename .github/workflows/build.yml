@@ -630,12 +630,13 @@ jobs:
                 echo "After extracting libglvnd $PKG_VER:"
                 pwd
                 ls -la
-                cd libglvnd-$PKG_VER/include
+                cd libglvnd-$PKG_VER
                 # Apply libglvnd patch
                 CFLAGS="-I$PREFIX/include" patch -p1 < /wine-custom/packages/libglvnd/egl-not-android.diff
-                meson setup build --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dtls=false ..
-                ninja -C build -j$(nproc)
-                ninja -C build -j$(nproc) install
+                mkdir build && cd build
+                meson setup --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Dtls=false ..
+                ninja -j$(nproc)
+                ninja -j$(nproc) install
                 cd /opengl-build
 
                 # Build zstd
@@ -648,7 +649,7 @@ jobs:
                 pwd
                 ls -la
                 cd zstd-$PKG_VER
-                patch -p1 < /wine-custom/packages/zstd/move-build.patch
+                cp -r build/meson/* .
                 ls -la
                 mkdir builddir && cd builddir
                 meson setup --cross-file=/wine-custom/build_config/meson-cross-file-$ARCH -Dprefix=$PREFIX -Dbuildtype=release -Ddefault_library=both -Dbin_programs=true -Dbin_tests=false -Dbin_contrib=true -Dzlib=enabled -Dlzma=disabled -Dlz4=disabled ..

@@ -1,5 +1,5 @@
---- a/EGL/eglplatform.h
-+++ b/EGL/eglplatform.h
+--- a/EGL/include/eglplatform.h
++++ b/EGL/include/eglplatform.h
 @@ -88,7 +88,7 @@
  typedef struct gbm_bo      *EGLNativePixmapType;
  typedef void               *EGLNativeWindowType;
