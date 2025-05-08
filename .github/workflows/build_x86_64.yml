@@ -88,6 +88,8 @@ jobs:
                 
                 # Build wine for glibc x86_64
                 echo 'Configuring ARM64 build...'
+                export CFLAGS="-std=gnu89"
+                export CROSSCFLAGS="-std=gnu89"   # applies to PE (i686‑w64‑mingw32‑gcc) objects
                 ./configure CFLAGS=-std=gnu89 --enable-archs=i386,x86_64 \
                     --prefix=/opt/wine \
                     --with-x --with-opengl --with-pulse --with-gstreamer --with-gnutls \
