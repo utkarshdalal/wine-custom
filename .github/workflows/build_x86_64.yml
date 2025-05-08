@@ -1,4 +1,4 @@
-name: Build Wine for Winlator
+name: Build Wine for x86_64 imagefs.txz
 
 on:
   push:
@@ -41,9 +41,9 @@ jobs:
             sed -i "s|^#Server|Server|" /etc/pacman.d/mirrorlist
             pacman -Sy'
           sudo arch-chroot /mnt/arch bash -c "pacman-key --init && pacman-key --populate && sed -i 's/#Server/Server/g' /etc/pacman.d/mirrorlist && sed -i 's/CheckSpace/#CheckSpace/g' /etc/pacman.conf && pacman -Syu --noconfirm \
-            base base-devel git mesa pulseaudio gstreamer 
-            gst-plugins-base gnutls xmlto fop libxslt libx11 
-            libxi libxext libxinerama libxrandr libxrender 
+            base base-devel git mesa pulseaudio gstreamer \
+            gst-plugins-base gnutls xmlto fop libxslt libx11 \
+            libxi libxext libxinerama libxrandr libxrender \
             libxfixes libxcursor xorgproto"
           sudo arch-chroot /mnt/arch pacman -S --noconfirm \
             base-devel git clang gcc-multilib pkgconf autoconf automake \
