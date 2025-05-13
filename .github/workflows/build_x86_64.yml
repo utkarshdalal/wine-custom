@@ -45,7 +45,7 @@ jobs:
             base base-devel git mesa pulseaudio gstreamer \
             gst-plugins-base gnutls xmlto fop libxslt libx11 \
             libxi libxext libxinerama libxrandr libxrender \
-            libxfixes libxcursor xorgproto vulkan-icd-loader"
+            libxfixes libxcursor xorgproto vulkan-icd-loader vulkan-headers"
         #   sudo arch-chroot /mnt/arch pacman -S --noconfirm \
         #     base-devel git clang gcc-multilib pkgconf autoconf automake \
         #     xorgproto libx11 libxext libxi libxrandr mesa \
@@ -83,7 +83,7 @@ jobs:
                 set -e  # Exit on any error
                 set -x  # Print commands as they're executed
                 
-                pacman -Sy --noconfirm autoconf automake pkgconf clang gcc-multilib mingw-w64-gcc mingw-w64-crt mingw-w64-binutils mingw-w64-headers vulkan-icd-loader
+                pacman -Sy --noconfirm autoconf automake pkgconf clang gcc-multilib mingw-w64-gcc mingw-w64-crt mingw-w64-binutils mingw-w64-headers vulkan-icd-loader vulkan-headers
                 cd /wine-custom
 
                 # Build wine for glibc x86_64
@@ -96,7 +96,7 @@ jobs:
                     --without-oss --without-usb --without-sdl --without-cups --without-netapi \
                     --without-pcap --without-gphoto --without-v4l2 --without-pcsclite \
                     --without-wayland --without-opencl --without-dbus --without-sane \
-                    --without-udev --without-capi --without-xshm --without-xxf86vm
+                    --without-udev --without-capi
 
                 echo 'Building wine...'
                 make -j$(nproc)
