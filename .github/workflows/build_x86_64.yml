@@ -46,7 +46,7 @@ jobs:
             gst-plugins-base gnutls xmlto fop libxslt libx11 \
             libxi libxext libxinerama libxrandr libxrender \
             libxfixes libxcursor xorgproto vulkan-icd-loader vulkan-headers \
-            glibc gcc-libs mesa mesa-vulkan-layers vulkan-swrast"
+            glibc gcc-libs mesa vulkan-mesa-layers vulkan-swrast"
         #   sudo arch-chroot /mnt/arch pacman -S --noconfirm \
         #     base-devel git clang gcc-multilib pkgconf autoconf automake \
         #     xorgproto libx11 libxext libxi libxrandr mesa \
@@ -84,7 +84,7 @@ jobs:
                 set -e  # Exit on any error
                 set -x  # Print commands as they're executed
                 
-                pacman -Sy --noconfirm autoconf automake pkgconf clang gcc-multilib mingw-w64-gcc mingw-w64-crt mingw-w64-binutils mingw-w64-headers vulkan-icd-loader vulkan-headers glibc gcc-libs mesa mesa-vulkan-layers vulkan-swrast
+                pacman -Sy --noconfirm autoconf automake pkgconf clang gcc-multilib mingw-w64-gcc mingw-w64-crt mingw-w64-binutils mingw-w64-headers vulkan-icd-loader vulkan-headers glibc gcc-libs mesa vulkan-mesa-layers vulkan-swrast
                 cd /wine-custom
 
                 # Build wine for glibc x86_64
