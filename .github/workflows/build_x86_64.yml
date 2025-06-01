@@ -71,12 +71,6 @@ jobs:
         run: |
           sudo cp -rf $PWD /mnt/arch/wine-custom
 
-      - name: "Unpack imagefs"
-        run: |
-          curl -L https://github.com/utkarshdalal/wine-custom/releases/download/imagefs/imagefs.txz -o imagefs.txz
-          mkdir -p imagefs
-          tar -xf imagefs.txz -C imagefs
-
       - name: "Build Wine for x86_64"
         run: |
             sudo arch-chroot /mnt/arch bash << 'EOF'
@@ -104,25 +98,12 @@ jobs:
 
                 echo 'Installing wine...'
                 make install DESTDIR=/stage
-                tar -C /stage -caf /wine-opt.txz opt/wine
+                tar -C /stage -caf /wine.txz .
             EOF
-            sudo mv /mnt/arch/wine-opt.txz .
+            sudo mv /mnt/arch/wine.txz .
 
       - name: "Upload built Wine"
         uses: actions/upload-artifact@v4
         with:
-          name: wine-opt
-          path: wine-opt.txz
-
-      - name: merge new wine into imagefs
-        run: |
-            rm -rf imagefs/opt/wine
-            tar -xf wine-opt.txz -C imagefs          # overwrites workroot/opt/wine
-            # replace old hardcoded winlator paths
-            grep -rIl --exclude='*.so' '/data/data/com.winlator/files/imagefs' imagefs | xargs sed -i 's|/data/data/com.winlator/files/imagefs|/data/data/com.utkarshdalal.PluviaGoldberg/files/imagefs|g'
-            tar -C imagefs -caf imagefs-new.txz .
-      
-      - uses: actions/upload-artifact@v4
-        with:
-          name: imagefs-new
-          path: imagefs-new.txz
+          name: wine
+          path: wine.txz
